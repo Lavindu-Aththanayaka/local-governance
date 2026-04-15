@@ -11,8 +11,9 @@ services:
       - "30303:30303"    # P2P TCP
       - "30303:30303/udp" # P2P UDP
     volumes:
-      - ./node1:/root/node1
+      - ./node1:/root/node1                       # Ephemeral: Pulls keystore & password from Git
       - ./genesis.json:/root/genesis.json
+      - node1_data:/root/node1/geth               # Persistent: Saves chaindata & nodekey safely
     command: 
       - "if [ ! -d /root/node1/geth/chaindata ]; then echo 'Initializing Node 1...' && geth init --datadir /root/node1 /root/genesis.json; fi; exec geth --datadir=/root/node1 --networkid=1337 --nodekey=/root/node1/geth/nodekey --http --http.addr=0.0.0.0 --http.port=8545 --http.corsdomain=* --http.vhosts=* --http.api=eth,net,web3,personal,miner,admin,clique --allow-insecure-unlock --mine --miner.etherbase=0x7E687086d737d5A06d13926505b7Fd5281aEdc23 --unlock=0x7E687086d737d5A06d13926505b7Fd5281aEdc23 --password=/root/node1/password.txt"
 
@@ -29,8 +30,9 @@ services:
     volumes:
       - ./node2:/root/node2
       - ./genesis.json:/root/genesis.json
+      - node2_data:/root/node2/geth
     command: 
-      - "if [ ! -d /root/node2/geth/chaindata ]; then echo 'Initializing Node 2...' && geth init --datadir /root/node2 /root/genesis.json; fi; exec geth --datadir=/root/node2 --networkid=1337 --port=30304 --authrpc.port=8552 --mine --miner.etherbase=0x151e6113e425990Ea0fBe47f1EeE01Ada1a3798c --unlock=0x151e6113e425990Ea0fBe47f1EeE01Ada1a3798c --password=/root/node2/password.txt --bootnodes=enode://bad42553f1935f218e32326f944cfe250b82ab9f0b5dc61eef3b61f001e242471d2b8f1af81198b82463623b69676e6b3fb81ac28b578d61902002e5e4c70dbb@node1:30303"
+      - "if [ ! -d /root/node2/geth/chaindata ]; then echo 'Initializing Node 2...' && geth init --datadir /root/node2 /root/genesis.json; fi; exec geth --datadir=/root/node2 --networkid=1337 --port=30304 --authrpc.port=8552 --mine --miner.etherbase=0x151e6113e425990Ea0fBe47f1EeE01Ada1a3798c --unlock=0x151e6113e425990Ea0fBe47f1EeE01Ada1a3798c --password=/root/node2/password.txt --bootnodes=enode://7d701fefe57be8a71c9c50ac984c2a515eba71503aac213ee17becba48467fe4668e93f7b337871340693e08eb278243fac98c77b3543f480c8250b7fafae9c5@node1:30303"
 
   node3:
     image: ethereum/client-go:v1.13.15
@@ -45,5 +47,12 @@ services:
     volumes:
       - ./node3:/root/node3
       - ./genesis.json:/root/genesis.json
+      - node3_data:/root/node3/geth
     command: 
-      - "if [ ! -d /root/node3/geth/chaindata ]; then echo 'Initializing Node 3...' && geth init --datadir /root/node3 /root/genesis.json; fi; exec geth --datadir=/root/node3 --networkid=1337 --port=30305 --authrpc.port=8553 --mine --miner.etherbase=0xAD0A0ed0e54954cF8CCe1e04991dAA6219e12105 --unlock=0xAD0A0ed0e54954cF8CCe1e04991dAA6219e12105 --password=/root/node3/password.txt --bootnodes=enode://bad42553f1935f218e32326f944cfe250b82ab9f0b5dc61eef3b61f001e242471d2b8f1af81198b82463623b69676e6b3fb81ac28b578d61902002e5e4c70dbb@node1:30303"
+      - "if [ ! -d /root/node3/geth/chaindata ]; then echo 'Initializing Node 3...' && geth init --datadir /root/node3 /root/genesis.json; fi; exec geth --datadir=/root/node3 --networkid=1337 --port=30305 --authrpc.port=8553 --mine --miner.etherbase=0xAD0A0ed0e54954cF8CCe1e04991dAA6219e12105 --unlock=0xAD0A0ed0e54954cF8CCe1e04991dAA6219e12105 --password=/root/node3/password.txt --bootnodes=enode://7d701fefe57be8a71c9c50ac984c2a515eba71503aac213ee17becba48467fe4668e93f7b337871340693e08eb278243fac98c77b3543f480c8250b7fafae9c5@node1:30303"
+
+# This section tells Docker to create independent, permanent volumes
+volumes:
+  node1_data:
+  node2_data:
+  node3_data:
