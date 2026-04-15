@@ -1,2 +1,2 @@
-ai-oracle-node/venv/*
-ai-oracle-node/__pycache__/*
+venv/
+__pycache__/
