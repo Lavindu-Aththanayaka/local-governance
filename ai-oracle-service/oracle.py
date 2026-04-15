@@ -2,30 +2,15 @@ import json
 import time
 from web3 import Web3
 from main import analyze_text  # Import your AI logic from the previous step
-import uuid
-from transformers import pipeline
+from config import ABI_PATH, ORACLE_CONTRACT_ADDRESS, DEFAULT_PRIVATE_KEY, RPC_URL
 
-print("[*] Loading RoBERTa Hate Speech Model... (This takes a moment)")
-ai_moderator = pipeline(
-    "text-classification", model="cardiffnlp/twitter-roberta-base-hate"
-)
-print("[*] RoBERTa Model Loaded Successfully!")
+PRIVATE_KEY = DEFAULT_PRIVATE_KEY
 
-
-# --- CONFIGURATION ---
-# 1. Paste the Contract Address you copied from Step 1
-CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
-
-# 2. Hardhat Account #0 Private Key (from the terminal where your node is running)
-# We use this to sign the transaction.
-PRIVATE_KEY = "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6"
-
-# 3. Path to your compiled ABI file
-ABI_PATH = "../smart-contracts/artifacts/contracts/Reporting.sol/Reporting.json"
-# ---------------------
+if not PRIVATE_KEY:
+    raise RuntimeError("Missing ORACLE_PRIVATE_KEY for ai-oracle-service/oracle.py")
 
 # Connect to local Hardhat node
-w3 = Web3(Web3.HTTPProvider("http://127.0.0.1:8545"))
+w3 = Web3(Web3.HTTPProvider(RPC_URL))
 account = w3.eth.account.from_key(PRIVATE_KEY)
 w3.eth.default_account = account.address
 
@@ -37,26 +22,7 @@ with open(ABI_PATH, "r") as file:
     contract_json = json.load(file)
     contract_abi = contract_json["abi"]
 
-contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=contract_abi)
-
-
-def analyze_text(text: str):
-    # Pass the text to the RoBERTa neural network
-    result = ai_moderator(text)[0]
-
-    label = result["label"]
-    score = result["score"]  # Probability from 0.0 to 1.0
-
-    if label == "LABEL_1" and score > 0.5:
-        # High confidence that it IS hate speech
-        trust_score = int((1.0 - score) * 100)
-        is_spam = True
-    else:
-        # Either LABEL_0 (Not Hate) or low-confidence hate
-        trust_score = int(score * 100)
-        is_spam = False
-
-    return {"trust_score": trust_score, "is_spam": is_spam}
+contract = w3.eth.contract(address=ORACLE_CONTRACT_ADDRESS, abi=contract_abi)
 
 
 def handle_new_report(event):
@@ -66,7 +32,7 @@ def handle_new_report(event):
 
     # In a real scenario, you'd fetch the text from IPFS using the CID.
     # For now, we will simulate the text to test the pipeline.
-    simulated_text = "The road on 5th avenue has a massive pothole that needs fixing."
+    simulated_text = "This is a fake spam report."
     print(f"[*] Analyzing text: '{simulated_text}'")
 
     # Run AI Moderation
@@ -85,12 +51,13 @@ def handle_new_report(event):
 def submit_vote(report_id, vote_direction):
     print(f"[*] Submitting vote: {vote_direction} for Report {report_id}...")
 
-    # Generate a completely unique bytes32 nullifier for this specific vote
-    unique_nullifier = w3.keccak(text=str(uuid.uuid4()))
+    # Note: In your contract, voteOnReport takes (_reportId, _voteDirection, _votingNullifier, _phase)
+    # Phase 0 is Validation. We use a dummy nullifier for this test.
+    dummy_nullifier = w3.to_bytes(text=f"oracle_vote_{report_id}").ljust(32, b"\0")
 
     try:
         tx = contract.functions.voteOnReport(
-            report_id, vote_direction, unique_nullifier, 0  # VotingPhase.Validation
+            report_id, vote_direction, dummy_nullifier, 0  # VotingPhase.Validation
         ).build_transaction(
             {
                 "from": account.address,

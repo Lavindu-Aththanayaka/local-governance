@@ -1,30 +1,25 @@
 import json
 import time
 from web3 import Web3
-# from main import analyze_text  # Import your AI logic from the previous step
+from main import analyze_text  # Import your AI logic from the previous step
 import uuid
-import nltk
-from nltk.sentiment.vader import SentimentIntensityAnalyzer
+from transformers import pipeline
+from config import ABI_PATH, ORACLE_CONTRACT_ADDRESS, INTL_PRIVATE_KEY, RPC_URL
 
-print("[*] Downloading VADER Lexicon...")
-nltk.download("vader_lexicon", quiet=True)
-sid = SentimentIntensityAnalyzer()
-print("[*] Lexicon Loaded Successfully!")
+print("[*] Loading RoBERTa Hate Speech Model... (This takes a moment)")
+ai_moderator = pipeline(
+    "text-classification", model="cardiffnlp/twitter-roberta-base-hate"
+)
+print("[*] RoBERTa Model Loaded Successfully!")
 
-# --- CONFIGURATION ---
-# 1. Paste the Contract Address you copied from Step 1
-CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
 
-# 2. Hardhat Account #0 Private Key (from the terminal where your node is running)
-# We use this to sign the transaction.
-PRIVATE_KEY = "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
+PRIVATE_KEY = INTL_PRIVATE_KEY
 
-# 3. Path to your compiled ABI file
-ABI_PATH = "../smart-contracts/artifacts/contracts/Reporting.sol/Reporting.json"
-# ---------------------
+if not PRIVATE_KEY:
+    raise RuntimeError("Missing ORACLE_INTL_PRIVATE_KEY for ai-oracle-service/oracle_intl.py")
 
 # Connect to local Hardhat node
-w3 = Web3(Web3.HTTPProvider("http://127.0.0.1:8545"))
+w3 = Web3(Web3.HTTPProvider(RPC_URL))
 account = w3.eth.account.from_key(PRIVATE_KEY)
 w3.eth.default_account = account.address
 
@@ -36,24 +31,23 @@ with open(ABI_PATH, "r") as file:
     contract_json = json.load(file)
     contract_abi = contract_json["abi"]
 
-contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=contract_abi)
+contract = w3.eth.contract(address=ORACLE_CONTRACT_ADDRESS, abi=contract_abi)
 
 
 def analyze_text(text: str):
-    # VADER analyzes the text and returns a dictionary of scores
-    scores = sid.polarity_scores(text)
+    # Pass the text to the RoBERTa neural network
+    result = ai_moderator(text)[0]
 
-    # We use the 'compound' score which ranges from -1 (most toxic) to +1 (safest)
-    compound = scores["compound"]
+    label = result["label"]
+    score = result["score"]  # Probability from 0.0 to 1.0
 
-    # Scale the -1 to 1 score into a 0 to 100 trust score
-    trust_score = int((compound + 1.0) * 50)
-
-    # If the text is heavily negative (e.g., swearing, severe complaints), flag it
-    # We set a threshold of -0.5 to allow for normal civic complaints
-    if compound < -0.5:
+    if label == "LABEL_1" and score > 0.5:
+        # High confidence that it IS hate speech
+        trust_score = int((1.0 - score) * 100)
         is_spam = True
     else:
+        # Either LABEL_0 (Not Hate) or low-confidence hate
+        trust_score = int(score * 100)
         is_spam = False
 
     return {"trust_score": trust_score, "is_spam": is_spam}

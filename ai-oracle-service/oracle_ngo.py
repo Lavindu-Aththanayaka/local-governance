@@ -3,27 +3,22 @@ import time
 from web3 import Web3
 # from main import analyze_text  # Import your AI logic from the previous step
 import uuid
-from transformers import pipeline
+import nltk
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+from config import ABI_PATH, ORACLE_CONTRACT_ADDRESS, NGO_PRIVATE_KEY, RPC_URL
 
-print("[*] Loading AI Machine Learning Model... (This takes a moment)")
-# Load a pre-trained toxicity classifier
-ai_moderator = pipeline("text-classification", model="unitary/toxic-bert")
-print("[*] AI Model Loaded Successfully!")
+print("[*] Downloading VADER Lexicon...")
+nltk.download("vader_lexicon", quiet=True)
+sid = SentimentIntensityAnalyzer()
+print("[*] Lexicon Loaded Successfully!")
 
-# --- CONFIGURATION ---
-# 1. Paste the Contract Address you copied from Step 1
-CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+PRIVATE_KEY = NGO_PRIVATE_KEY
 
-# 2. Hardhat Account #0 Private Key (from the terminal where your node is running)
-# We use this to sign the transaction.
-PRIVATE_KEY = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
-
-# 3. Path to your compiled ABI file
-ABI_PATH = "../smart-contracts/artifacts/contracts/Reporting.sol/Reporting.json"
-# ---------------------
+if not PRIVATE_KEY:
+    raise RuntimeError("Missing ORACLE_NGO_PRIVATE_KEY for ai-oracle-service/oracle_ngo.py")
 
 # Connect to local Hardhat node
-w3 = Web3(Web3.HTTPProvider("http://127.0.0.1:8545"))
+w3 = Web3(Web3.HTTPProvider(RPC_URL))
 account = w3.eth.account.from_key(PRIVATE_KEY)
 w3.eth.default_account = account.address
 
@@ -35,22 +30,24 @@ with open(ABI_PATH, "r") as file:
     contract_json = json.load(file)
     contract_abi = contract_json["abi"]
 
-contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=contract_abi)
+contract = w3.eth.contract(address=ORACLE_CONTRACT_ADDRESS, abi=contract_abi)
 
 
 def analyze_text(text: str):
-    # Pass the text to the neural network
-    result = ai_moderator(text)[0]
+    # VADER analyzes the text and returns a dictionary of scores
+    scores = sid.polarity_scores(text)
 
-    score = result["score"]  # The probability score from 0.0 to 1.0
+    # We use the 'compound' score which ranges from -1 (most toxic) to +1 (safest)
+    compound = scores["compound"]
 
-    # Since toxic-bert only has negative labels, a safe sentence gets a very LOW score (e.g., 0.001)
-    # We only flag it as spam if the AI is more than 50% confident it is toxic
-    if score > 0.5:
-        trust_score = int((1.0 - score) * 100)  # High toxicity = low trust
+    # Scale the -1 to 1 score into a 0 to 100 trust score
+    trust_score = int((compound + 1.0) * 50)
+
+    # If the text is heavily negative (e.g., swearing, severe complaints), flag it
+    # We set a threshold of -0.5 to allow for normal civic complaints
+    if compound < -0.5:
         is_spam = True
     else:
-        trust_score = int((1.0 - score) * 100)  # Low toxicity = high trust (e.g., 99)
         is_spam = False
 
     return {"trust_score": trust_score, "is_spam": is_spam}
