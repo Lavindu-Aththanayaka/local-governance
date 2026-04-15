@@ -1,12 +1,35 @@
 import { ethers } from "ethers";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+import { loadEnvFile } from "node:process";
+
+const oracleEnvPath = resolve(process.cwd(), "../ai-oracle-service/.env");
+
+if (existsSync(oracleEnvPath)) {
+    loadEnvFile(oracleEnvPath);
+}
+
+function requireEnv(name: string): string {
+    const value = process.env[name];
+
+    if (!value) {
+        throw new Error(
+            `Missing required environment variable: ${name}. ` +
+            `Add it to ai-oracle-service/.env or export it before running this script.`
+        );
+    }
+
+    return value;
+}
 
 async function main() {
     console.log("Connecting to local Hardhat node...");
-    const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
-    const privateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
-    const deployer = new ethers.Wallet(privateKey, provider);
-
-    const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+    const rpcUrl = process.env.ORACLE_RPC_URL ?? "http://127.0.0.1:8545";
+    const privateKey = requireEnv("ORACLE_PRIVATE_KEY");
+    const contractAddress = requireEnv("ORACLE_CONTRACT_ADDRESS");
+    const provider = new ethers.JsonRpcProvider(rpcUrl);
+    const deployer = new ethers.NonceManager(new ethers.Wallet(privateKey, provider));
+    const deployerAddress = await deployer.getAddress();
 
     const minimalAbi = [
         "function RELAYER_ROLE() view returns (bytes32)",
@@ -17,34 +40,46 @@ async function main() {
 
     const contract = new ethers.Contract(contractAddress, minimalAbi, deployer);
 
+    const contractCode = await provider.getCode(contractAddress);
+    if (contractCode === "0x") {
+        throw new Error(
+            `No contract code found at ${contractAddress} on ${rpcUrl}. ` +
+            `Your localhost chain likely doesn't have Reporting deployed yet, or ORACLE_CONTRACT_ADDRESS points to an old deployment. ` +
+            `Redeploy the contract to the running local node and update ai-oracle-service/.env if the address changes.`
+        );
+    }
+
     console.log("1. Checking permissions...");
 
     const RELAYER_ROLE = await contract.RELAYER_ROLE();
-    const alreadyHasRole = await contract.hasRole(RELAYER_ROLE, deployer.address);
+    const alreadyHasRole = await contract.hasRole(RELAYER_ROLE, deployerAddress);
 
-    // The addresses for Hardhat Accounts 1, 2, and 3
+    // Derive oracle addresses from the configured private keys so the script
+    // always matches the active oracle service configuration.
     const oracleAddresses = [
-        "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
-        "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
-        "0x90F79bf6EB2c4f870365E785982E1f101E93b906"
-    ];
+        requireEnv("ORACLE_GOV_PRIVATE_KEY"),
+        requireEnv("ORACLE_NGO_PRIVATE_KEY"),
+        requireEnv("ORACLE_INTL_PRIVATE_KEY"),
+    ].map((key) => new ethers.Wallet(key).address);
+
+    console.log(`Using contract: ${contractAddress}`);
+    console.log(`Using deployer: ${deployerAddress}`);
 
     console.log("Authorizing the 3 Oracle Nodes...");
     for (const address of oracleAddresses) {
         const hasRole = await contract.hasRole(RELAYER_ROLE, address);
         if (!hasRole) {
-            // Fetch fresh nonce before each grant
-            let currentNonce = await provider.getTransactionCount(deployer.address);
-            const tx = await contract.grantRole(RELAYER_ROLE, address, { nonce: currentNonce });
+            const tx = await contract.grantRole(RELAYER_ROLE, address);
             await tx.wait();
             console.log(`Granted access to ${address}`);
+        } else {
+            console.log(`Already authorized: ${address}`);
         }
     }
 
     if (!alreadyHasRole) {
         console.log("   Granting RELAYER_ROLE to deployer...");
-        let currentNonce = await provider.getTransactionCount(deployer.address);
-        const grantTx = await contract.grantRole(RELAYER_ROLE, deployer.address, { nonce: currentNonce });
+        const grantTx = await contract.grantRole(RELAYER_ROLE, deployerAddress);
         await grantTx.wait();
     } else {
         console.log("   Deployer already has RELAYER_ROLE. Skipping grant.");
@@ -54,9 +89,7 @@ async function main() {
     const fakeIpfsCID = "QmFakeIpfsHashForTesting123";
     const fakeNullifier = ethers.id("test-nullifier-" + Date.now());
 
-    // FIX: Fetch the absolute latest nonce right before the final transaction
-    let finalNonce = await provider.getTransactionCount(deployer.address);
-    const tx = await contract.createReport(fakeIpfsCID, fakeNullifier, { nonce: finalNonce });
+    const tx = await contract.createReport(fakeIpfsCID, fakeNullifier);
     await tx.wait();
 
     console.log("✅ Transaction confirmed! Look at your oracle.py terminals now.");
