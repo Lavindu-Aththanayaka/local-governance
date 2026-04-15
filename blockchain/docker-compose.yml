@@ -30,7 +30,7 @@ services:
       - ./node2:/root/node2
       - ./genesis.json:/root/genesis.json
     command: 
-      - "if [ ! -d /root/node2/geth/chaindata ]; then echo 'Initializing Node 2...' && geth init --datadir /root/node2 /root/genesis.json; fi; exec geth --datadir=/root/node2 --networkid=1337 --port=30304 --authrpc.port=8552 --mine --miner.etherbase=0x151e6113e425990Ea0fBe47f1EeE01Ada1a3798c --unlock=0x151e6113e425990Ea0fBe47f1EeE01Ada1a3798c --password=/root/node2/password.txt --bootnodes=enode://35198a229b752fd1bc1b4de29bb4a902df31ced9c3a341da57011fbdd9656116b06424340f0e12c2c1f46efd011ec6a2bd7d69b0f78d3008fa97d1fa29ad8324@node1:30303"
+      - "if [ ! -d /root/node2/geth/chaindata ]; then echo 'Initializing Node 2...' && geth init --datadir /root/node2 /root/genesis.json; fi; exec geth --datadir=/root/node2 --networkid=1337 --port=30304 --authrpc.port=8552 --mine --miner.etherbase=0x151e6113e425990Ea0fBe47f1EeE01Ada1a3798c --unlock=0x151e6113e425990Ea0fBe47f1EeE01Ada1a3798c --password=/root/node2/password.txt --bootnodes=enode://83e1faaf0e17281ff41bf4e5a477276eaa9f335b2fc8fdba02ea435012bbb23cc7ae67f289189ded2dc58c71444bab2bb470a7031557ea30af2b497d3a4967e3@node1:30303"
 
   node3:
     image: ethereum/client-go:v1.13.15
@@ -46,4 +46,4 @@ services:
       - ./node3:/root/node3
       - ./genesis.json:/root/genesis.json
     command: 
-      - "if [ ! -d /root/node3/geth/chaindata ]; then echo 'Initializing Node 3...' && geth init --datadir /root/node3 /root/genesis.json; fi; exec geth --datadir=/root/node3 --networkid=1337 --port=30305 --authrpc.port=8553 --mine --miner.etherbase=0xAD0A0ed0e54954cF8CCe1e04991dAA6219e12105 --unlock=0xAD0A0ed0e54954cF8CCe1e04991dAA6219e12105 --password=/root/node3/password.txt --bootnodes=enode://35198a229b752fd1bc1b4de29bb4a902df31ced9c3a341da57011fbdd9656116b06424340f0e12c2c1f46efd011ec6a2bd7d69b0f78d3008fa97d1fa29ad8324@node1:30303"
+      - "if [ ! -d /root/node3/geth/chaindata ]; then echo 'Initializing Node 3...' && geth init --datadir /root/node3 /root/genesis.json; fi; exec geth --datadir=/root/node3 --networkid=1337 --port=30305 --authrpc.port=8553 --mine --miner.etherbase=0xAD0A0ed0e54954cF8CCe1e04991dAA6219e12105 --unlock=0xAD0A0ed0e54954cF8CCe1e04991dAA6219e12105 --password=/root/node3/password.txt --bootnodes=enode://83e1faaf0e17281ff41bf4e5a477276eaa9f335b2fc8fdba02ea435012bbb23cc7ae67f289189ded2dc58c71444bab2bb470a7031557ea30af2b497d3a4967e3@node1:30303"
