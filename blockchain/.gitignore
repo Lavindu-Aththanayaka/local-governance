@@ -1,7 +1,7 @@
 # Node data directories - contains private keys and blockchain state
-node1/
-node2/
-node3/
+blockchain/node1/geth
+blockchain/node3/geth
+blockchain/node2/geth
 
 # Geth binary and installation files
 geth-linux-amd64-*/
