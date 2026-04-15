@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   node1:
     image: ethereum/client-go:v1.13.15
@@ -10,20 +12,14 @@ services:
     volumes:
       - ./node1:/root/node1
       - ./genesis.json:/root/genesis.json
-    command:
-      - --datadir=/root/node1
-      - --networkid=1337
-      - --http
-      - --http.addr=0.0.0.0
-      - --http.port=8545
-      - --http.corsdomain=*
-      - --http.vhosts=*
-      - --http.api=eth,net,web3,personal,miner,admin,clique
-      - --allow-insecure-unlock
-      - --mine
-      - --miner.etherbase=0x7E687086d737d5A06d13926505b7Fd5281aEdc23
-      - --unlock=0x7E687086d737d5A06d13926505b7Fd5281aEdc23
-      - --password=/root/node1/password.txt
+    command: >
+      sh -c "
+      if [ ! -d '/root/node1/geth/chaindata' ]; then
+        echo 'Initializing Node 1...' &&
+        geth init --datadir /root/node1 /root/genesis.json;
+      fi &&
+      geth --datadir=/root/node1 --networkid=1337 --http --http.addr=0.0.0.0 --http.port=8545 --http.corsdomain=* --http.vhosts=* --http.api=eth,net,web3,personal,miner,admin,clique --allow-insecure-unlock --mine --miner.etherbase=0x7E687086d737d5A06d13926505b7Fd5281aEdc23 --unlock=0x7E687086d737d5A06d13926505b7Fd5281aEdc23 --password=/root/node1/password.txt
+      "
 
   node2:
     image: ethereum/client-go:v1.13.15
@@ -37,16 +33,14 @@ services:
     volumes:
       - ./node2:/root/node2
       - ./genesis.json:/root/genesis.json
-    command:
-      - --datadir=/root/node2
-      - --networkid=1337
-      - --port=30304
-      - --authrpc.port=8552
-      - --mine
-      - --miner.etherbase=0x151e6113e425990Ea0fBe47f1EeE01Ada1a3798c
-      - --unlock=0x151e6113e425990Ea0fBe47f1EeE01Ada1a3798c
-      - --password=/root/node2/password.txt
-      - --bootnodes=enode://35198a229b752fd1bc1b4de29bb4a902df31ced9c3a341da57011fbdd9656116b06424340f0e12c2c1f46efd011ec6a2bd7d69b0f78d3008fa97d1fa29ad8324@node1:30303
+    command: >
+      sh -c "
+      if [ ! -d '/root/node2/geth/chaindata' ]; then
+        echo 'Initializing Node 2...' &&
+        geth init --datadir /root/node2 /root/genesis.json;
+      fi &&
+      geth --datadir=/root/node2 --networkid=1337 --port=30304 --authrpc.port=8552 --mine --miner.etherbase=0x151e6113e425990Ea0fBe47f1EeE01Ada1a3798c --unlock=0x151e6113e425990Ea0fBe47f1EeE01Ada1a3798c --password=/root/node2/password.txt --bootnodes=enode://35198a229b752fd1bc1b4de29bb4a902df31ced9c3a341da57011fbdd9656116b06424340f0e12c2c1f46efd011ec6a2bd7d69b0f78d3008fa97d1fa29ad8324@node1:30303
+      "
 
   node3:
     image: ethereum/client-go:v1.13.15
@@ -60,13 +54,11 @@ services:
     volumes:
       - ./node3:/root/node3
       - ./genesis.json:/root/genesis.json
-    command:
-      - --datadir=/root/node3
-      - --networkid=1337
-      - --port=30305
-      - --authrpc.port=8553
-      - --mine
-      - --miner.etherbase=0xAD0A0ed0e54954cF8CCe1e04991dAA6219e12105
-      - --unlock=0xAD0A0ed0e54954cF8CCe1e04991dAA6219e12105
-      - --password=/root/node3/password.txt
-      - --bootnodes=enode://35198a229b752fd1bc1b4de29bb4a902df31ced9c3a341da57011fbdd9656116b06424340f0e12c2c1f46efd011ec6a2bd7d69b0f78d3008fa97d1fa29ad8324@node1:30303
+    command: >
+      sh -c "
+      if [ ! -d '/root/node3/geth/chaindata' ]; then
+        echo 'Initializing Node 3...' &&
+        geth init --datadir /root/node3 /root/genesis.json;
+      fi &&
+      geth --datadir=/root/node3 --networkid=1337 --port=30305 --authrpc.port=8553 --mine --miner.etherbase=0xAD0A0ed0e54954cF8CCe1e04991dAA6219e12105 --unlock=0xAD0A0ed0e54954cF8CCe1e04991dAA6219e12105 --password=/root/node3/password.txt --bootnodes=enode://35198a229b752fd1bc1b4de29bb4a902df31ced9c3a341da57011fbdd9656116b06424340f0e12c2c1f46efd011ec6a2bd7d69b0f78d3008fa97d1fa29ad8324@node1:30303
+      "
