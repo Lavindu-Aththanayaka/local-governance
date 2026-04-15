@@ -1,8 +1,14 @@
 import json
 import time
 from web3 import Web3
-from main import analyze_text  # Import your AI logic from the previous step
+# from main import analyze_text  # Import your AI logic from the previous step
 import uuid
+from transformers import pipeline
+
+print("[*] Loading AI Machine Learning Model... (This takes a moment)")
+# Load a pre-trained toxicity classifier
+ai_moderator = pipeline("text-classification", model="unitary/toxic-bert")
+print("[*] AI Model Loaded Successfully!")
 
 # --- CONFIGURATION ---
 # 1. Paste the Contract Address you copied from Step 1
@@ -32,6 +38,24 @@ with open(ABI_PATH, "r") as file:
 contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=contract_abi)
 
 
+def analyze_text(text: str):
+    # Pass the text to the neural network
+    result = ai_moderator(text)[0]
+
+    score = result["score"]  # The probability score from 0.0 to 1.0
+
+    # Since toxic-bert only has negative labels, a safe sentence gets a very LOW score (e.g., 0.001)
+    # We only flag it as spam if the AI is more than 50% confident it is toxic
+    if score > 0.5:
+        trust_score = int((1.0 - score) * 100)  # High toxicity = low trust
+        is_spam = True
+    else:
+        trust_score = int((1.0 - score) * 100)  # Low toxicity = high trust (e.g., 99)
+        is_spam = False
+
+    return {"trust_score": trust_score, "is_spam": is_spam}
+
+
 def handle_new_report(event):
     report_id = event["args"]["reportId"]
     ipfs_cid = event["args"]["ipfsCID"]
@@ -39,7 +63,7 @@ def handle_new_report(event):
 
     # In a real scenario, you'd fetch the text from IPFS using the CID.
     # For now, we will simulate the text to test the pipeline.
-    simulated_text = "This is a fake spam report."
+    simulated_text = "The road on 5th avenue has a massive pothole that needs fixing."
     print(f"[*] Analyzing text: '{simulated_text}'")
 
     # Run AI Moderation

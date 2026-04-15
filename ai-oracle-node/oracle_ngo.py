@@ -39,7 +39,7 @@ def handle_new_report(event):
 
     # In a real scenario, you'd fetch the text from IPFS using the CID.
     # For now, we will simulate the text to test the pipeline.
-    simulated_text = "This is a fake spam report."
+    simulated_text = "The road on 5th avenue has a massive pothole that needs fixing."
     print(f"[*] Analyzing text: '{simulated_text}'")
 
     # Run AI Moderation
