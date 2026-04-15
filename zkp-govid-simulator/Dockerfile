@@ -22,7 +22,7 @@ ENV DB_PATH=/app/data/citizens.db
 COPY package*.json ./
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
-COPY data ./data
+RUN mkdir -p /app/data
 
 VOLUME ["/app/data"]
 EXPOSE 5000
