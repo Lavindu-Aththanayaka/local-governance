@@ -3,6 +3,14 @@ import time
 from web3 import Web3
 from main import analyze_text  # Import your AI logic from the previous step
 import uuid
+from transformers import pipeline
+
+print("[*] Loading RoBERTa Hate Speech Model... (This takes a moment)")
+ai_moderator = pipeline(
+    "text-classification", model="cardiffnlp/twitter-roberta-base-hate"
+)
+print("[*] RoBERTa Model Loaded Successfully!")
+
 
 # --- CONFIGURATION ---
 # 1. Paste the Contract Address you copied from Step 1
@@ -30,6 +38,25 @@ with open(ABI_PATH, "r") as file:
     contract_abi = contract_json["abi"]
 
 contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=contract_abi)
+
+
+def analyze_text(text: str):
+    # Pass the text to the RoBERTa neural network
+    result = ai_moderator(text)[0]
+
+    label = result["label"]
+    score = result["score"]  # Probability from 0.0 to 1.0
+
+    if label == "LABEL_1" and score > 0.5:
+        # High confidence that it IS hate speech
+        trust_score = int((1.0 - score) * 100)
+        is_spam = True
+    else:
+        # Either LABEL_0 (Not Hate) or low-confidence hate
+        trust_score = int(score * 100)
+        is_spam = False
+
+    return {"trust_score": trust_score, "is_spam": is_spam}
 
 
 def handle_new_report(event):

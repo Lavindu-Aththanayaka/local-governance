@@ -1,8 +1,15 @@
 import json
 import time
 from web3 import Web3
-from main import analyze_text  # Import your AI logic from the previous step
+# from main import analyze_text  # Import your AI logic from the previous step
 import uuid
+import nltk
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+
+print("[*] Downloading VADER Lexicon...")
+nltk.download("vader_lexicon", quiet=True)
+sid = SentimentIntensityAnalyzer()
+print("[*] Lexicon Loaded Successfully!")
 
 # --- CONFIGURATION ---
 # 1. Paste the Contract Address you copied from Step 1
@@ -30,6 +37,26 @@ with open(ABI_PATH, "r") as file:
     contract_abi = contract_json["abi"]
 
 contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=contract_abi)
+
+
+def analyze_text(text: str):
+    # VADER analyzes the text and returns a dictionary of scores
+    scores = sid.polarity_scores(text)
+
+    # We use the 'compound' score which ranges from -1 (most toxic) to +1 (safest)
+    compound = scores["compound"]
+
+    # Scale the -1 to 1 score into a 0 to 100 trust score
+    trust_score = int((compound + 1.0) * 50)
+
+    # If the text is heavily negative (e.g., swearing, severe complaints), flag it
+    # We set a threshold of -0.5 to allow for normal civic complaints
+    if compound < -0.5:
+        is_spam = True
+    else:
+        is_spam = False
+
+    return {"trust_score": trust_score, "is_spam": is_spam}
 
 
 def handle_new_report(event):
