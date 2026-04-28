@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Shield, Lock } from "lucide-react";
+import { ethers } from "ethers";
 
 export default function AuthPage() {
   const router = useRouter();
@@ -34,6 +35,11 @@ export default function AuthPage() {
       if (!response.ok) {
         throw new Error(data.error || "Authentication failed");
       }
+
+      // Generate Ephemeral Wallet (Abstract Wallet)
+      const ephemeralWallet = ethers.Wallet.createRandom();
+      localStorage.setItem("ephemeral_pk", ephemeralWallet.privateKey);
+      localStorage.setItem("ephemeral_address", ephemeralWallet.address);
 
       // Store ticketId and signature (simulate ZKP token)
       localStorage.setItem("zk_ticketId", data.ticketId);
