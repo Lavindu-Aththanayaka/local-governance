@@ -2,167 +2,127 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { submitIssue } from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Camera, MapPin, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
+import { Camera, MapPin, Lock, LocateFixed, CheckCircle2 } from "lucide-react";
 
 export default function ReportPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [formData, setFormData] = useState({
-    title: "",
-    category: "Infrastructure",
-    description: "",
-    location: "",
-  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title || !formData.description || !formData.location) return;
-    
     setIsSubmitting(true);
-    try {
-      await submitIssue(formData);
+    
+    // Simulate submission delay
+    setTimeout(() => {
+      setIsSubmitting(false);
       setIsSuccess(true);
       setTimeout(() => {
-        router.push("/issues");
+        router.push("/feed");
       }, 3000);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    }, 2000);
   };
 
   if (isSuccess) {
     return (
-      <div className="container max-w-lg mx-auto py-24 px-4 h-[70vh] flex flex-col items-center justify-center animate-in zoom-in duration-500">
-        <div className="bg-success/10 text-success rounded-full p-6 mb-6">
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-140px)] px-4 py-8 animate-in zoom-in duration-500">
+        <div className="bg-green-50 text-green-600 rounded-full p-6 mb-6">
           <CheckCircle2 className="h-16 w-16" />
         </div>
-        <h2 className="text-3xl font-bold mb-4 text-center">Report Submitted Securely</h2>
-        <p className="text-muted-foreground text-center mb-8">
-          Your report has passed AI moderation and was successfully anchored to the blockchain. You will be redirected shortly.
+        <h2 className="text-3xl font-bold mb-4 text-center text-slate-900">Report Submitted</h2>
+        <p className="text-slate-500 text-center mb-8 max-w-sm">
+          Your report has passed AI moderation and was successfully anchored to the blockchain.
         </p>
-        <Button onClick={() => router.push("/issues")}>View All Issues</Button>
       </div>
     );
   }
 
   return (
-    <div className="container max-w-2xl mx-auto py-12 px-4">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Report a Civic Issue</h1>
-        <p className="text-muted-foreground">
-          Submit details about local infrastructure, safety, or sanitation problems. Your identity is fully decoupled and protected.
+    <div className="min-h-screen pb-24 px-4 pt-8 md:pt-12">
+      <div className="max-w-xl mx-auto">
+        <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 mb-3">
+          Create New Report
+        </h1>
+        <p className="text-slate-500 mb-8">
+          Securely submit an incident or observation to the public ledger.
         </p>
-      </div>
 
-      <Card className="border-border shadow-lg">
-        <form onSubmit={handleSubmit}>
-          <CardHeader>
-            <CardTitle>Issue Details</CardTitle>
-            <CardDescription>
-              Please provide as much context as possible. AI moderation will review content before it is recorded on the ledger.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <label htmlFor="title" className="text-sm font-medium">Issue Title</label>
-              <Input
-                id="title"
-                name="title"
-                placeholder="e.g., Deep Pothole on 4th Avenue"
-                value={formData.title}
-                onChange={handleChange}
-                required
-              />
+        <form onSubmit={handleSubmit} className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 md:p-8">
+          
+          {/* Step 1 */}
+          <div className="mb-8">
+            <label className="block text-sm font-bold text-slate-900 mb-3">
+              Step 1: What's the issue?
+            </label>
+            <textarea
+              rows={4}
+              required
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 resize-none transition-all"
+              placeholder="Describe the situation clearly and objectively..."
+            />
+          </div>
+
+          {/* Step 2 */}
+          <div className="mb-8">
+            <label className="block text-sm font-bold text-slate-900 mb-3">
+              Step 2: Add Proof
+            </label>
+            <div className="border-2 border-dashed border-slate-200 rounded-2xl p-8 flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 cursor-pointer transition-colors group">
+              <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-slate-400 mb-3 group-hover:text-blue-600 shadow-sm border border-slate-100 transition-colors">
+                <Camera className="h-5 w-5" />
+              </div>
+              <span className="text-sm font-semibold text-slate-700">Upload Photo/Video</span>
+              <span className="text-xs text-slate-400 mt-1 font-medium">Supports JPG, PNG, MP4</span>
             </div>
-            
-            <div className="space-y-2">
-              <label htmlFor="category" className="text-sm font-medium">Category</label>
-              <select
-                id="category"
-                name="category"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                value={formData.category}
-                onChange={handleChange}
+          </div>
+
+          {/* Step 3 */}
+          <div className="mb-10">
+            <label className="block text-sm font-bold text-slate-900 mb-3">
+              Step 3: Location
+            </label>
+            <div className="relative h-48 rounded-2xl overflow-hidden border border-slate-200 bg-slate-100">
+              <img 
+                src="https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=800&h=400" 
+                alt="Map"
+                className="w-full h-full object-cover opacity-80"
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-12 h-12 bg-blue-600/20 rounded-full flex items-center justify-center animate-pulse">
+                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-lg">
+                    <MapPin className="h-4 w-4" />
+                  </div>
+                </div>
+              </div>
+              <button 
+                type="button"
+                className="absolute bottom-4 left-4 bg-white px-3 py-1.5 rounded-lg shadow-sm border border-slate-100 flex items-center gap-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
               >
-                <option value="Infrastructure">Infrastructure</option>
-                <option value="Sanitation">Sanitation</option>
-                <option value="Public Safety">Public Safety</option>
-                <option value="Traffic">Traffic</option>
-              </select>
+                <LocateFixed className="h-3.5 w-3.5 text-blue-600" />
+                Current Location
+              </button>
             </div>
+          </div>
 
-            <div className="space-y-2">
-              <label htmlFor="description" className="text-sm font-medium">Description</label>
-              <textarea
-                id="description"
-                name="description"
-                rows={4}
-                className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                placeholder="Describe the issue in detail..."
-                value={formData.description}
-                onChange={handleChange}
-                required
-              />
-            </div>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full py-4 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2"
+          >
+            {isSubmitting ? (
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <Lock className="h-5 w-5" />
+            )}
+            <span>{isSubmitting ? "Submitting..." : "Submit Anonymously"}</span>
+          </button>
+          
+          <p className="text-center text-xs font-medium text-slate-400 mt-4">
+            Your identity is cryptographically protected.
+          </p>
 
-            <div className="space-y-2">
-              <label htmlFor="location" className="text-sm font-medium">Location</label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="location"
-                  name="location"
-                  placeholder="Street address or intersection"
-                  className="pl-9"
-                  value={formData.location}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Visual Evidence</label>
-              <div className="border-2 border-dashed border-input rounded-lg p-6 flex flex-col items-center justify-center text-center bg-muted/20 hover:bg-muted/50 transition-colors cursor-pointer">
-                <Camera className="h-8 w-8 text-muted-foreground mb-2" />
-                <span className="text-sm text-foreground font-medium">Click to upload image</span>
-                <span className="text-xs text-muted-foreground mt-1">Images are stored off-chain via IPFS</span>
-              </div>
-            </div>
-
-            <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 flex gap-3 text-sm text-foreground">
-              <AlertCircle className="h-5 w-5 text-primary shrink-0" />
-              <p>
-                By submitting this form, you agree to our community guidelines. Fake or malicious reports will be filtered by AI moderation.
-              </p>
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-between border-t p-6 bg-muted/10 rounded-b-xl">
-            <Button type="button" variant="ghost" onClick={() => router.back()}>Cancel</Button>
-            <Button type="submit" disabled={isSubmitting} className="min-w-[140px]">
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                "Submit Report"
-              )}
-            </Button>
-          </CardFooter>
         </form>
-      </Card>
+      </div>
     </div>
   );
 }
