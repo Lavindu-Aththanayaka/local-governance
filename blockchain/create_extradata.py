@@ -2,9 +2,9 @@ import sys
 
 # --- CONFIGURATION ---
 # PASTE YOUR 3 ADDRESSES HERE (Remove the '0x')
-validator_1 = "0x1bB3c72918a315d67fac7641e8bf0906577ca263"
-validator_2 = "0x92173f5df8050332Fee023628835F72e8d4Be471"
-validator_3 = "0x60Ecd1C3590f3BE4BB18D302537c4989A11735E9"
+validator_1 = "0x7E687086d737d5A06d13926505b7Fd5281aEdc23"
+validator_2 = "0x151e6113e425990Ea0fBe47f1EeE01Ada1a3798c"
+validator_3 = "0xAD0A0ed0e54954cF8CCe1e04991dAA6219e12105"
 # ---------------------
 
 def create_clique_extradata(validators):

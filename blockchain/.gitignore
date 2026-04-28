@@ -1,7 +1,23 @@
-# Node data directories - contains private keys and blockchain state
-node1/
-node2/
-node3/
+# Keep only lightweight chain config + wallet identity files
+!genesis.json
+
+# Node 1: keep password + keystore, ignore everything else
+node1/*
+!node1/password.txt
+!node1/keystore/
+!node1/keystore/**
+
+# Node 2: keep password + keystore, ignore everything else
+node2/*
+!node2/password.txt
+!node2/keystore/
+!node2/keystore/**
+
+# Node 3: keep password + keystore, ignore everything else
+node3/*
+!node3/password.txt
+!node3/keystore/
+!node3/keystore/**
 
 # Geth binary and installation files
 geth-linux-amd64-*/
