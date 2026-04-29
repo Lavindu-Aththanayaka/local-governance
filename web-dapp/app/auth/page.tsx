@@ -24,7 +24,7 @@ export default function AuthPage() {
     setIsGenerating(true);
     
     try {
-      const response = await fetch("http://localhost:5000/api/govid/verify-citizen", {
+      const response = await fetch("https://zkp.internalbuildtools.online/api/govid/verify-citizen", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ govId, password }),
