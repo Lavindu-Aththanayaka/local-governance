@@ -44,6 +44,41 @@ Notes:
 - `transformers` models are downloaded the first time the ML-backed oracle scripts run.
 - `oracle_ngo.py` downloads the VADER lexicon on first startup.
 
+## Docker Deployment (Recommended for VPS)
+
+For deploying on a VPS with Docker, all 3 oracle instances run as separate containers:
+
+1. **Prepare environment file:**
+
+```bash
+cp .env.docker.example .env.docker
+# Edit .env.docker with your PoA RPC, contract address, and oracle private keys
+```
+
+2. **Build and run:**
+
+```bash
+# Build the image
+docker-compose build
+
+# Start all 3 oracles in the background
+docker-compose up -d
+
+# View logs
+docker-compose logs -f oracle-gov
+docker-compose logs -f oracle-ngo
+docker-compose logs -f oracle-intl
+
+# Stop all oracles
+docker-compose down
+```
+
+3. **For production on VPS:**
+
+- Replace `ORACLE_RPC_URL` with your PoA node's public IP or internal network address.
+- Mount the contract ABI as a read-only volume if it changes frequently.
+- Use `restart: unless-stopped` to auto-recover from crashes.
+
 ## Configuration
 
 Create `ai-oracle-service/.env` with the variables below:
