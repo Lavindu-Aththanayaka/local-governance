@@ -1,3 +1,5 @@
+"use client";
+
 // context/CitizenContext.tsx
 import React, { createContext, useState, useContext, ReactNode } from 'react';
 import { CitizenWallet } from '@/lib/walletUtils';
