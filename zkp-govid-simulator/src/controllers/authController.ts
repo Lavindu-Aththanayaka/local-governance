@@ -42,7 +42,8 @@ const authenticate = async (req: Request<never, never, AuthRequest>, res: Respon
   res.json({
     success: true,
     ticketId: result.ticketId,
-    signature: result.signature
+    signature: result.signature,
+    citizenSeed: result.citizenSeed
   });
 };
 

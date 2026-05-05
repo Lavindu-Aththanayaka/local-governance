@@ -8,6 +8,7 @@ interface AuthResult {
   error?: string;
   ticketId?: string;
   signature?: string;
+  citizenSeed?: string;
 }
 
 const getTicketExpiry = (): string | null => {
@@ -48,7 +49,8 @@ const authenticateAndGenerateProof = async (
   return {
     success: true,
     ticketId,
-    signature
+    signature,
+    citizenSeed: citizen.citizenSeed
   };
 };
 
