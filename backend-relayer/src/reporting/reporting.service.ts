@@ -3,12 +3,13 @@ import {
   Logger,
   BadRequestException,
   UnauthorizedException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { ethers } from 'ethers';
-import type { Multer } from 'multer';
 import { BlockchainService } from '../blockchain/blockchain.service';
 // import { IpfsService } from '../ipfs/ipfs.service';
 // import { AiOracleService } from '../ai-oracle/ai-oracle.service';
+import multer from 'multer';
 
 export interface SubmitReportPayload {
   description: string;
@@ -19,11 +20,11 @@ export interface SubmitReportPayload {
 }
 
 @Injectable()
-export class ReportingService {
+export class ReportingService implements OnModuleInit {
   private readonly logger = new Logger(ReportingService.name);
 
-  // NOTE: In production, this MUST come from your .env file
-  private readonly GOV_PUBLIC_KEY = process.env.GOV_PUBLIC_KEY || '0xYourGovWalletPublicKeyHere';
+  // We will store the fetched key here dynamically instead of hardcoding it
+  private govPublicKey: string = '';
 
   constructor(
     private readonly blockchainService: BlockchainService,
@@ -31,7 +32,38 @@ export class ReportingService {
     // private readonly aiOracleService: AiOracleService,
   ) {}
 
-  // Renamed method to match the controller
+  // This runs automatically when the NestJS application starts
+  async onModuleInit() {
+    await this.fetchGovPublicKey();
+  }
+
+  // Helper method to fetch the key from your ZKP simulator
+  private async fetchGovPublicKey() {
+    try {
+      // Assuming your ZKP simulator runs on port 3001 locally. 
+      // You can override this in your Relayer's .env if needed.
+      const zkpUrl = process.env.ZKP_SIMULATOR_URL || 'http://localhost:3001';
+      
+      this.logger.log(`Fetching Government Public Key from ${zkpUrl}...`);
+      const response = await fetch(`${zkpUrl}/api/public-key`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP Error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      this.govPublicKey = data.authorityAddress;
+      
+      this.logger.log(`✅ Successfully loaded Gov Public Key: ${this.govPublicKey}`);
+    } catch (error: any) {
+      this.logger.warn(`⚠️ Failed to fetch Gov Public Key from simulator: ${error.message}`);
+      
+      // Fallback: If the simulator is offline during startup, try to use the .env variable
+      this.govPublicKey = process.env.GOV_PUBLIC_KEY || '0xYourGovWalletPublicKeyHere';
+      this.logger.log(`🔄 Falling back to .env GOV_PUBLIC_KEY: ${this.govPublicKey}`);
+    }
+  }
+
   async createReport(payload: SubmitReportPayload, image?: Express.Multer.File) {
     const { description, zkpTicketId, zkpSignature, citizenPubKey, signature } = payload;
 
@@ -46,8 +78,9 @@ export class ReportingService {
         zkpSignature
       );
 
-      if (recoveredGovAddress.toLowerCase() !== this.GOV_PUBLIC_KEY.toLowerCase()) {
-         this.logger.error(`Gov signature mismatch. Expected: ${this.GOV_PUBLIC_KEY}, Got: ${recoveredGovAddress}`);
+      // Compare against our dynamically fetched govPublicKey
+      if (recoveredGovAddress.toLowerCase() !== this.govPublicKey.toLowerCase()) {
+         this.logger.error(`Gov signature mismatch. Expected: ${this.govPublicKey}, Got: ${recoveredGovAddress}`);
          throw new UnauthorizedException('Invalid or forged government ticket');
       }
 
