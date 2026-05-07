@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+  oracle-gov:
+    build: ./oracle-gov
+    container_name: oracle-gov
+    restart: unless-stopped
+    expose:
+      - "8001"
+
+  oracle-intl:
+    build: ./oracle-intl
+    container_name: oracle-intl
+    restart: unless-stopped
+    expose:
+      - "8002"
+
+  oracle-ngo:
+    build: ./oracle-ngo
+    container_name: oracle-ngo
+    restart: unless-stopped
+    expose:
+      - "8003"
+
+  aggregator:
+    build: ./aggregator
+    container_name: oracle-aggregator
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - oracle-gov
+      - oracle-intl
+      - oracle-ngo
