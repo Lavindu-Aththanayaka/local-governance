@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { authenticateAndGenerateProof } from '../services/authService';
+import { authenticateAndGenerateProof, getAuthorityPublicKey } from '../services/authService';
 import { createCitizen, isUniqueConstraintError } from '../models/citizen';
 
 interface AuthRequest {
@@ -113,4 +113,21 @@ const addCitizen = (req: Request<never, never, AddCitizenRequest>, res: Response
   }
 };
 
-export { addCitizen, authenticate };
+// NEW: GET /api/govid/public-key
+// Returns the public address of the Government Authority node
+const getPublicKey = (req: Request, res: Response): void => {
+  try {
+    const address = getAuthorityPublicKey();
+    res.status(200).json({
+      success: true,
+      authorityAddress: address,
+      description: "The official public address of the Government Authority node"
+    });
+  } catch (error) {
+    console.error('Error fetching public key:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+// Added getPublicKey to exports
+export { addCitizen, authenticate, getPublicKey };

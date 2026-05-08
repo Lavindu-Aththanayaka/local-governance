@@ -72,4 +72,8 @@ const authenticateAndGenerateProof = async (
   };
 };
 
-export { authenticateAndGenerateProof };
+const getAuthorityPublicKey = (): string => {
+  return getGovWallet().address;
+};
+
+export { authenticateAndGenerateProof,getAuthorityPublicKey };
