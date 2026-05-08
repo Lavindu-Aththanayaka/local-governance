@@ -69,7 +69,7 @@ export default function ReportPage() {
       formData.append("citizenPubKey", wallet.publicKey);
       formData.append("signature", signature);
 
-      const response = await fetch("/api/backend-relayer/submit", {
+      const response = await fetch("https://relayer.internalbuildtools.online/report", {
         method: "POST",
         body: formData,
       });
