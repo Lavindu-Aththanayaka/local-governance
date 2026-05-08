@@ -1,32 +1,50 @@
-version: "3.9"
-
 services:
-  oracle-gov:
-    build: ./oracle-gov
+  oracle-safety:
+    build: ./oracle-safety
+    container_name: oracle-safety
     restart: unless-stopped
+    environment:
+      - ENABLE_AI_MODELS=${ENABLE_AI_MODELS}
+      - HF_HOME=/models
     expose:
       - "8001"
+    volumes:
+      - hf-model-cache:/models
 
-  oracle-intl:
-    build: ./oracle-intl
+  oracle-spam:
+    build: ./oracle-spam
+    container_name: oracle-spam
     restart: unless-stopped
     expose:
       - "8002"
 
-  oracle-ngo:
-    build: ./oracle-ngo
+  oracle-civic:
+    build: ./oracle-civic
+    container_name: oracle-civic
     restart: unless-stopped
+    environment:
+      - ENABLE_CLIP_RELEVANCE=${ENABLE_CLIP_RELEVANCE}
+      - HF_HOME=/models
     expose:
       - "8003"
+    volumes:
+      - hf-model-cache:/models
 
   aggregator:
     build: ./aggregator
+    container_name: oracle-aggregator
     restart: unless-stopped
     ports:
       - "8000:8000"
     env_file:
       - .env
     depends_on:
-      - oracle-gov
-      - oracle-intl
-      - oracle-ngo
+      - oracle-safety
+      - oracle-spam
+      - oracle-civic
+    volumes:
+      - aggregator-data:/data
+
+volumes:
+  hf-model-cache:
+  aggregator-data:
