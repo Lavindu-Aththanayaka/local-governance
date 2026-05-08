@@ -1,60 +1,50 @@
-version: '3.8'
-
 services:
-  oracle-gov:
-    build: .
-    container_name: oracle-gov
-    command: python scripts/run_gov_oracle.py
-    environment:
-      ORACLE_RPC_URL: ${ORACLE_RPC_URL:-http://host.docker.internal:8545}
-      ORACLE_WS_URL: ${ORACLE_WS_URL:-}
-      ORACLE_CONTRACT_ADDRESS: ${ORACLE_CONTRACT_ADDRESS}
-      ORACLE_ABI_PATH: ${ORACLE_ABI_PATH:-/app/artifacts/Reporting.json}
-      ORACLE_GOV_PRIVATE_KEY: ${ORACLE_GOV_PRIVATE_KEY}
-      IPFS_API_URL: ${IPFS_API_URL:-/ip4/127.0.0.1/tcp/5001}
-      IPFS_GATEWAY: ${IPFS_GATEWAY:-https://ipfs.io/ipfs}
+  oracle-safety:
+    build: ./oracle-safety
+    container_name: oracle-safety
     restart: unless-stopped
-    networks:
-      - local-governance
-    volumes:
-      - ${ABI_PATH:-./artifacts}:/app/artifacts:ro
-
-  oracle-ngo:
-    build: .
-    container_name: oracle-ngo
-    command: python scripts/run_ngo_oracle.py
     environment:
-      ORACLE_RPC_URL: ${ORACLE_RPC_URL:-http://host.docker.internal:8545}
-      ORACLE_WS_URL: ${ORACLE_WS_URL:-}
-      ORACLE_CONTRACT_ADDRESS: ${ORACLE_CONTRACT_ADDRESS}
-      ORACLE_ABI_PATH: ${ORACLE_ABI_PATH:-/app/artifacts/Reporting.json}
-      ORACLE_NGO_PRIVATE_KEY: ${ORACLE_NGO_PRIVATE_KEY}
-      IPFS_API_URL: ${IPFS_API_URL:-/ip4/127.0.0.1/tcp/5001}
-      IPFS_GATEWAY: ${IPFS_GATEWAY:-https://ipfs.io/ipfs}
-    restart: unless-stopped
-    networks:
-      - local-governance
+      - ENABLE_AI_MODELS=${ENABLE_AI_MODELS}
+      - HF_HOME=/models
+    expose:
+      - "8001"
     volumes:
-      - ${ABI_PATH:-./artifacts}:/app/artifacts:ro
+      - hf-model-cache:/models
 
-  oracle-intl:
-    build: .
-    container_name: oracle-intl
-    command: python scripts/run_intl_oracle.py
+  oracle-spam:
+    build: ./oracle-spam
+    container_name: oracle-spam
+    restart: unless-stopped
+    expose:
+      - "8002"
+
+  oracle-civic:
+    build: ./oracle-civic
+    container_name: oracle-civic
+    restart: unless-stopped
     environment:
-      ORACLE_RPC_URL: ${ORACLE_RPC_URL:-http://host.docker.internal:8545}
-      ORACLE_WS_URL: ${ORACLE_WS_URL:-}
-      ORACLE_CONTRACT_ADDRESS: ${ORACLE_CONTRACT_ADDRESS}
-      ORACLE_ABI_PATH: ${ORACLE_ABI_PATH:-/app/artifacts/Reporting.json}
-      ORACLE_INTL_PRIVATE_KEY: ${ORACLE_INTL_PRIVATE_KEY}
-      IPFS_API_URL: ${IPFS_API_URL:-/ip4/127.0.0.1/tcp/5001}
-      IPFS_GATEWAY: ${IPFS_GATEWAY:-https://ipfs.io/ipfs}
-    restart: unless-stopped
-    networks:
-      - local-governance
+      - ENABLE_CLIP_RELEVANCE=${ENABLE_CLIP_RELEVANCE}
+      - HF_HOME=/models
+    expose:
+      - "8003"
     volumes:
-      - ${ABI_PATH:-./artifacts}:/app/artifacts:ro
+      - hf-model-cache:/models
 
-networks:
-  local-governance:
-    driver: bridge
+  aggregator:
+    build: ./aggregator
+    container_name: oracle-aggregator
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - oracle-safety
+      - oracle-spam
+      - oracle-civic
+    volumes:
+      - aggregator-data:/data
+
+volumes:
+  hf-model-cache:
+  aggregator-data:
