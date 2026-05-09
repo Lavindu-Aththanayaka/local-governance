@@ -18,6 +18,25 @@ export class AiOracleService {
   // 1. FIX: Provide a strict fallback or handle the undefined type properly
   private readonly relayerPrivateKey = process.env.RELAYER_PRIVATE_KEY || '';
 
+  private canonicalJson(value: any): string {
+    if (value === null || typeof value !== 'object') {
+      return JSON.stringify(value);
+    }
+
+    if (Array.isArray(value)) {
+      return `[${value.map((item) => this.canonicalJson(item)).join(',')}]`;
+    }
+
+    return (
+      '{' +
+      Object.keys(value)
+        .sort()
+        .map((key) => `${JSON.stringify(key)}:${this.canonicalJson(value[key])}`)
+        .join(',') +
+      '}'
+    );
+  }
+
   constructor() {
     if (!this.relayerPrivateKey) {
       this.logger.warn('RELAYER_PRIVATE_KEY is missing from environment variables!');
@@ -54,24 +73,28 @@ export class AiOracleService {
       report_id: reportId,
       text_hash: textHash,
       media_hashes: mediaHashes,
-      category: category,
-      location: location,
+      category,
+      location,
       ticket_hash: zkpTicketId,
       payload_hash: payloadHash,
-      timestamp: timestamp,
-      nonce: nonce
+      timestamp,
+      nonce,
     };
 
-    // 2. FIX: Sort keys safely without destroying the array data
-    const sortedKeys = Object.keys(canonicalObject).sort();
-    const sortedCanonicalObject: Record<string, any> = {};
-    for (const key of sortedKeys) {
-      sortedCanonicalObject[key] = (canonicalObject as any)[key];
-    }
-
     const wallet = new ethers.Wallet(this.relayerPrivateKey);
-    const canonicalString = JSON.stringify(sortedCanonicalObject);
-    const relayerSignature = await wallet.signMessage(canonicalString);
+
+    const canonicalString = this.canonicalJson(canonicalObject);
+    const requestHash = crypto
+      .createHash('sha256')
+      .update(canonicalString, 'utf8')
+      .digest('hex');
+
+    const relayerSignature = await wallet.signMessage(requestHash);
+
+    this.logger.log(`Relayer wallet address: ${wallet.address}`);
+    this.logger.log(`Canonical string: ${canonicalString}`);
+    this.logger.log(`Request hash: ${requestHash}`);
+    this.logger.log(`Relayer signature: ${relayerSignature}`);
 
     const metadata = {
       report_id: reportId,
@@ -128,8 +151,8 @@ export class AiOracleService {
       
       return {
         success: true,
-        isApproved: result.approved ?? true,
-        reason: result.reason,
+        isApproved: result.final_decision === 'ACCEPT',
+        reason: result.summary_explanation,
       };
 
     } catch (error: any) {
