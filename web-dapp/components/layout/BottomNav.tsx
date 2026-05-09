@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Layers, PlusCircle, User, Bell } from "lucide-react";
+import { Layers, PlusCircle, User, Bell, BarChart2 } from "lucide-react";
 
 export function BottomNav({ className = "", isSidebar = false }: { className?: string; isSidebar?: boolean }) {
   const pathname = usePathname();
 
   const navItems = [
     { label: "Feed", href: "/feed", icon: Layers },
-    { label: "Report", href: "/report", icon: PlusCircle },
+    { label: isSidebar ? "Reports" : "Report", href: "/report", icon: isSidebar ? BarChart2 : PlusCircle },
     { label: "Profile", href: "/auth", icon: User },
     { label: "Notifications", href: "#", icon: Bell },
   ];
