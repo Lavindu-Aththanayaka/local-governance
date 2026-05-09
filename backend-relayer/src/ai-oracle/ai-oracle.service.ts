@@ -1,7 +1,6 @@
 import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
 import { ethers } from 'ethers';
 import * as crypto from 'crypto';
-import { v4 as uuidv4 } from 'uuid';
 
 export interface AiModerationResponse {
   success: boolean;
@@ -12,7 +11,7 @@ export interface AiModerationResponse {
 @Injectable()
 export class AiOracleService {
   private readonly logger = new Logger(AiOracleService.name);
-  private readonly endpoint = 'https://ai-moderation.internalbuildtools.online/moderate/report';
+  private readonly endpoint = 'https://ai-oracle.internalbuildtools.online/moderate/report';
   
   private readonly apiKey = process.env.ORACLE_API_KEY || 'default-api-key';
   
@@ -39,8 +38,8 @@ export class AiOracleService {
       throw new InternalServerErrorException('Relayer wallet is not configured properly.');
     }
 
-    const reportId = `RPT-${uuidv4()}`;
-    const nonce = uuidv4();
+    const reportId = `RPT-${crypto.randomUUID()}`;
+    const nonce = crypto.randomUUID();
     const timestamp = new Date().toISOString();
     
     const category = 'General Civic Issue';
@@ -84,6 +83,17 @@ export class AiOracleService {
       citizen_signature: citizenSignature,
       government_ticket_signature: zkpSignature
     };
+
+    const requestBodyPreview = {
+      metadata,
+      files: images.map((img, index) => ({
+        originalname: img.originalname || `image-${index}.webp`,
+        mimetype: img.mimetype,
+        size: img.size,
+      })),
+    };
+
+    this.logger.log(`AI Oracle request body preview: ${JSON.stringify(requestBodyPreview, null, 2)}`);
 
     // 3. FIX: Cast to 'any' to bypass TS DOM complaining, relying on Node 18+ globals
     const formData = new (globalThis as any).FormData();
