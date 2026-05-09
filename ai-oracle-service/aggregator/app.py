@@ -19,7 +19,7 @@ load_dotenv()
 app = FastAPI(
     title="AI Oracle Aggregator",
     description="Secure AI moderation aggregator for civic report moderation.",
-    version="2.0.0",
+    version="2.1.0",
 )
 
 ORACLE_API_KEY = os.getenv("ORACLE_API_KEY", "change-this-secret")
@@ -61,8 +61,10 @@ class OracleRequest(BaseModel):
 
 def init_db() -> None:
     os.makedirs("/data", exist_ok=True)
+
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
+
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS used_nonces (
@@ -72,6 +74,7 @@ def init_db() -> None:
         )
         """
     )
+
     conn.commit()
     conn.close()
 
@@ -115,10 +118,14 @@ def parse_timestamp(timestamp_str: str) -> datetime:
     try:
         if timestamp_str.endswith("Z"):
             timestamp_str = timestamp_str.replace("Z", "+00:00")
+
         dt = datetime.fromisoformat(timestamp_str)
+
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
+
         return dt.astimezone(timezone.utc)
+
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid request timestamp")
 
@@ -126,6 +133,7 @@ def parse_timestamp(timestamp_str: str) -> datetime:
 def validate_timestamp(timestamp_str: str) -> None:
     request_time = parse_timestamp(timestamp_str)
     now = datetime.now(timezone.utc)
+
     age_seconds = abs((now - request_time).total_seconds())
 
     if age_seconds > MAX_REQUEST_AGE_SECONDS:
@@ -138,12 +146,17 @@ def validate_and_store_nonce(nonce: str, request_hash: str) -> None:
 
     try:
         cur.execute(
-            "INSERT INTO used_nonces (nonce, request_hash, created_at) VALUES (?, ?, ?)",
+            """
+            INSERT INTO used_nonces (nonce, request_hash, created_at)
+            VALUES (?, ?, ?)
+            """,
             (nonce, request_hash, int(time.time())),
         )
         conn.commit()
+
     except sqlite3.IntegrityError:
         raise HTTPException(status_code=401, detail="Replay detected: nonce already used")
+
     finally:
         conn.close()
 
@@ -169,9 +182,17 @@ def build_signed_request_object(
 
 
 def validate_metadata(metadata: Dict[str, Any]) -> None:
-    required = ["report_id", "text", "category", "location", "ticket_hash", "payload_hash"]
+    required = [
+        "report_id",
+        "text",
+        "category",
+        "location",
+        "ticket_hash",
+        "payload_hash",
+    ]
 
     missing = [field for field in required if not metadata.get(field)]
+
     if missing:
         raise HTTPException(status_code=400, detail=f"Missing metadata fields: {missing}")
 
@@ -219,11 +240,15 @@ async def process_uploaded_files(files: Optional[List[UploadFile]]) -> List[Medi
     return processed
 
 
-def verify_relayer_signature(
-    request_hash: str,
-    signature: str,
-    relayer_address_header: str,
-) -> None:
+def verify_relayer_signature(request_hash: str, signature: str) -> str:
+    """
+    Verifies that the moderation request was signed by the trusted backend relayer.
+
+    The relayer address is NOT taken from a request header.
+    Instead, it is recovered from the signature and compared with
+    TRUSTED_RELAYER_ADDRESS from the environment.
+    """
+
     if not TRUSTED_RELAYER_ADDRESS:
         raise HTTPException(status_code=500, detail="Trusted relayer address not configured")
 
@@ -235,8 +260,7 @@ def verify_relayer_signature(
     if recovered_address != TRUSTED_RELAYER_ADDRESS:
         raise HTTPException(status_code=401, detail="Request not signed by trusted relayer")
 
-    if relayer_address_header and relayer_address_header.lower() != TRUSTED_RELAYER_ADDRESS:
-        raise HTTPException(status_code=401, detail="Relayer address header mismatch")
+    return recovered_address
 
 
 def call_oracle(oracle_name: str, oracle_url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -244,6 +268,7 @@ def call_oracle(oracle_name: str, oracle_url: str, payload: Dict[str, Any]) -> D
         response = requests.post(oracle_url, json=payload, timeout=30)
         response.raise_for_status()
         return response.json()
+
     except Exception as e:
         return {
             "oracle_id": f"ORACLE_{oracle_name.upper()}",
@@ -266,7 +291,8 @@ def aggregate_votes(oracle_votes: List[Dict[str, Any]]) -> Dict[str, Any]:
     civic_rejection = any(
         vote.get("oracle_id") == "ORACLE_3_CIVIC_RELEVANCE"
         and vote.get("vote") == "REJECT"
-        and vote.get("explanation_code") in ["LOW_CIVIC_RELEVANCE", "NON_CIVIC_CONTENT"]
+        and vote.get("explanation_code")
+        in ["LOW_CIVIC_RELEVANCE", "NON_CIVIC_CONTENT"]
         for vote in oracle_votes
     )
 
@@ -274,29 +300,34 @@ def aggregate_votes(oracle_votes: List[Dict[str, Any]]) -> Dict[str, Any]:
         final_decision = "REJECT"
         risk_level = "HIGH"
         summary = "Report rejected due to a critical safety or system violation."
+
     elif civic_rejection:
         final_decision = "REJECT"
         risk_level = "MEDIUM"
         summary = "Report rejected because it does not appear to describe a valid civic issue."
+
     elif accept_count >= 2:
         final_decision = "ACCEPT"
         risk_level = "LOW"
         summary = "Report accepted. Text and media passed moderation checks."
+
     else:
         final_decision = "REJECT"
         risk_level = "MEDIUM"
         summary = "Report rejected because the oracle votes did not reach acceptance majority."
 
-    selected = [
+    selected_confidences = [
         vote.get("confidence", 0.0)
         for vote in oracle_votes
         if vote.get("vote") == final_decision
     ]
 
-    if selected:
-        final_confidence = sum(selected) / len(selected)
+    if selected_confidences:
+        final_confidence = sum(selected_confidences) / len(selected_confidences)
     else:
-        final_confidence = sum(vote.get("confidence", 0.0) for vote in oracle_votes) / len(oracle_votes)
+        final_confidence = (
+            sum(vote.get("confidence", 0.0) for vote in oracle_votes) / len(oracle_votes)
+        )
 
     return {
         "final_decision": final_decision,
@@ -314,7 +345,9 @@ def root():
     return {
         "service": "AI_ORACLE_AGGREGATOR",
         "status": "running",
+        "version": "2.1.0",
         "decision_mode": "ACCEPT_REJECT_ONLY",
+        "relayer_auth": "signature_recovery",
         "oracles": list(ORACLE_URLS.keys()),
     }
 
@@ -324,7 +357,6 @@ async def moderate_report(
     metadata: str = Form(...),
     files: Optional[List[UploadFile]] = File(default=None),
     x_api_key: Optional[str] = Header(default=None, alias="x-api-key"),
-    x_relayer_address: Optional[str] = Header(default=None, alias="x-relayer-address"),
     x_relayer_signature: Optional[str] = Header(default=None, alias="x-relayer-signature"),
     x_request_timestamp: Optional[str] = Header(default=None, alias="x-request-timestamp"),
     x_request_nonce: Optional[str] = Header(default=None, alias="x-request-nonce"),
@@ -366,10 +398,9 @@ async def moderate_report(
 
     request_hash = hash_dict(signed_request_object)
 
-    verify_relayer_signature(
+    recovered_relayer_address = verify_relayer_signature(
         request_hash=request_hash,
         signature=x_relayer_signature,
-        relayer_address_header=x_relayer_address or "",
     )
 
     validate_and_store_nonce(x_request_nonce, request_hash)
@@ -394,6 +425,7 @@ async def moderate_report(
     oracle_payload = oracle_request.model_dump()
 
     oracle_votes = []
+
     for oracle_name, oracle_url in ORACLE_URLS.items():
         vote = call_oracle(oracle_name, oracle_url, oracle_payload)
         oracle_votes.append(vote)
@@ -434,5 +466,11 @@ async def moderate_report(
         "aggregator_signature": aggregator_signature,
         "summary_explanation": aggregation["summary_explanation"],
         "oracle_votes": oracle_votes,
+        "security": {
+            "relayer_signature_verified": True,
+            "recovered_relayer_address": recovered_relayer_address,
+            "timestamp_validated": True,
+            "nonce_accepted": True,
+        },
         "processing_time_ms": processing_time_ms,
     }
