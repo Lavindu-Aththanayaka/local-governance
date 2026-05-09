@@ -10,6 +10,9 @@ import { ExpressAdapter, FilesInterceptor } from '@nestjs/platform-express';
 import { ReportingService } from './reporting.service';
 import type { SubmitReportPayload } from './reporting.service';
 
+type UploadedImage = {
+  buffer: Uint8Array;
+};
 
 @Controller('report')
 export class ReportingController {
@@ -22,7 +25,7 @@ export class ReportingController {
   @UseInterceptors(FilesInterceptor('images', 5))
   async createReport(
     @Body() payload: SubmitReportPayload,
-    @UploadedFiles() images?: Express.Multer.File[], // Changed to array
+    @UploadedFiles() images?: UploadedImage[],
   ) {
     this.logger.log(`Received report creation request for ticket: ${payload.zkpTicketId}`);
     
@@ -31,12 +34,12 @@ export class ReportingController {
     }
 
     // Offload all the complex logic to the service layer
-    const txResult = await this.reportingService.createReport(payload, images);
+    const reportResult = await this.reportingService.createReport(payload, images);
 
     return {
       success: true,
-      message: 'Report successfully validated and recorded on the blockchain.',
-      data: txResult,
+      message: 'Report successfully validated and accepted.',
+      data: reportResult,
     };
   }
 }

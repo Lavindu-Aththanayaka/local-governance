@@ -6,7 +6,6 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { ethers } from 'ethers';
-import { BlockchainService } from '../blockchain/blockchain.service';
 import { AiOracleService } from '../ai-oracle/ai-oracle.service';
 // import { IpfsService } from '../ipfs/ipfs.service';
 
@@ -19,6 +18,10 @@ export interface SubmitReportPayload {
   imageHashes: string; 
 }
 
+type UploadedImage = {
+  buffer: Uint8Array;
+};
+
 @Injectable()
 export class ReportingService implements OnModuleInit {
   private readonly logger = new Logger(ReportingService.name);
@@ -26,7 +29,6 @@ export class ReportingService implements OnModuleInit {
   private govPublicKey: string = '';
 
   constructor(
-    private readonly blockchainService: BlockchainService,
     private readonly aiOracleService: AiOracleService,
     // private readonly ipfsService: IpfsService,
   ) {}
@@ -48,7 +50,7 @@ export class ReportingService implements OnModuleInit {
     this.logger.log(`Loaded Government Public Address from .env: ${this.govPublicKey}`);
   }
 
-  async createReport(payload: SubmitReportPayload, images?: Express.Multer.File[]) {
+  async createReport(payload: SubmitReportPayload, images?: UploadedImage[]) {
     const { description, zkpTicketId, zkpSignature, citizenPubKey, signature, imageHashes } = payload;
 
     if (!description || !zkpTicketId || !zkpSignature || !citizenPubKey || !signature) {
@@ -132,14 +134,14 @@ export class ReportingService implements OnModuleInit {
       const ipfsCID = 'ipfs://QmMockHashForNow12345'; 
       this.logger.log(`IPFS upload mocked: ${ipfsCID}`);
 
-      // STEP 6: Blockchain Submission
-      const txResult = await this.blockchainService.submitReportToChain(
+      // STEP 6: Blockchain Submission (temporarily disabled)
+      this.logger.warn('Blockchain submission is temporarily disabled. Returning success after AI moderation.');
+      return {
+        success: true,
+        submissionStatus: 'accepted_offchain',
+        zkpTicketId,
         ipfsCID,
-        zkpTicketId
-      );
-
-      this.logger.log(`Report successfully processed and sent to chain.`);
-      return txResult;
+      };
 
     } catch (error: any) {
       this.logger.error(`Submission pipeline failed: ${error.message}`);
