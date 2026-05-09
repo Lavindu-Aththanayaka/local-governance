@@ -6,6 +6,7 @@ import sqlite3
 import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
+from fastapi.middleware.cors import CORSMiddleware
 
 import requests
 from dotenv import load_dotenv
@@ -20,6 +21,28 @@ app = FastAPI(
     title="AI Oracle Aggregator",
     description="Secure AI moderation aggregator for civic report moderation.",
     version="2.1.0",
+)
+cors_origins_raw = os.getenv(
+    "ALLOWED_CORS_ORIGINS"
+)
+
+ALLOWED_CORS_ORIGINS = [
+    origin.strip()
+    for origin in cors_origins_raw.split(",")
+    if origin.strip()
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=[
+        "Content-Type",
+        "x-api-key",
+        "x-relayer-signature",
+        "x-request-timestamp",
+        "x-request-nonce",
+    ],
 )
 
 ORACLE_API_KEY = os.getenv("ORACLE_API_KEY", "change-this-secret")
@@ -265,8 +288,24 @@ def verify_relayer_signature(request_hash: str, signature: str) -> str:
 
 def call_oracle(oracle_name: str, oracle_url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     try:
-        response = requests.post(oracle_url, json=payload, timeout=30)
-        response.raise_for_status()
+        response = requests.post(oracle_url, json=payload, timeout=60)
+
+        if response.status_code >= 400:
+            return {
+                "oracle_id": f"ORACLE_{oracle_name.upper()}",
+                "vote": "REJECT",
+                "confidence": 1.0,
+                "explanation_code": "ORACLE_REQUEST_FAILED",
+                "model_name": "unavailable",
+                "model_version": "unknown",
+                "critical_violation": True,
+                "details": {
+                    "status_code": response.status_code,
+                    "response_text": response.text,
+                    "oracle_url": oracle_url,
+                },
+            }
+
         return response.json()
 
     except Exception as e:
@@ -278,9 +317,11 @@ def call_oracle(oracle_name: str, oracle_url: str, payload: Dict[str, Any]) -> D
             "model_name": "unavailable",
             "model_version": "unknown",
             "critical_violation": True,
-            "details": {"error": str(e)},
+            "details": {
+                "error": str(e),
+                "oracle_url": oracle_url,
+            },
         }
-
 
 def aggregate_votes(oracle_votes: List[Dict[str, Any]]) -> Dict[str, Any]:
     accept_count = sum(1 for vote in oracle_votes if vote.get("vote") == "ACCEPT")
