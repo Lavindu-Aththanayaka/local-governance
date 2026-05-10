@@ -67,7 +67,7 @@ services:
           --networkid=1337
           --port=30304
           --authrpc.port=8552
-          --bootnodes=enode://5eb24111c649070f4abcea044b8d652b116e4ac2443eaca03084ead694f6bd7ea54233b1802baa911a6ed9197e3914cac9ba34ffd14110fcf15173c5c0ed3fd0@node1:30303
+          --bootnodes=enode://053c04feb485790df3dd6ee02e55a35bcffcff04ed57920323a418946ce195dd0d8b490898c8786605f2d55449c63c47ba73342326ebbed19b45145ee7383bf1@node1:30303
           --txpool.pricelimit=0
           --rpc.allow-unprotected-txs"
 
@@ -97,7 +97,7 @@ services:
           --networkid=1337
           --port=30305
           --authrpc.port=8553
-          --bootnodes=enode://5eb24111c649070f4abcea044b8d652b116e4ac2443eaca03084ead694f6bd7ea54233b1802baa911a6ed9197e3914cac9ba34ffd14110fcf15173c5c0ed3fd0@node1:30303
+          --bootnodes=enode://053c04feb485790df3dd6ee02e55a35bcffcff04ed57920323a418946ce195dd0d8b490898c8786605f2d55449c63c47ba73342326ebbed19b45145ee7383bf1@node1:30303
           --txpool.pricelimit=0
           --rpc.allow-unprotected-txs"
 
