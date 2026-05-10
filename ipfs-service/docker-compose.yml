@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   #  CONTAINER 1: IPFS Daemon
   ipfs-node:
@@ -10,7 +8,7 @@ services:
     ports:
       - "4001:4001"
       - "5001:5001"
-      - "8080:8080"
+      - "8181:8080"
 
     volumes:
       - ipfs-data:/data/ipfs
