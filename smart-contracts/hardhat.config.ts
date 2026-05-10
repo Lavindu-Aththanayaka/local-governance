@@ -37,12 +37,12 @@ export default defineConfig({
       accounts: [configVariable("SEPOLIA_PRIVATE_KEY")],
     },
     gethPrivate: {
-          type: "http", // FIXED: Must be "http" even for secure HTTPS URLs
-          chainType: "l1", // FIXED: Added for consistent Hardhat v3 validation
-          url: "https://rpc.internalbuildtools.online",
-          chainId: 1337,
-          accounts: [configVariable("DEPLOYER_PRIVATE_KEY")], // Recommended: Native keystore variable
-          gasPrice: 0,
-        },
+      type: "http", // FIXED: Must be "http" even for secure HTTPS URLs
+      chainType: "l1", // FIXED: Added for consistent Hardhat v3 validation
+      url: "https://rpc.internalbuildtools.online",
+      chainId: 1337,
+      accounts: [configVariable("DEPLOYER_PRIVATE_KEY")], // Recommended: Native keystore variable
+      gasPrice: 0,
+    },
   },
 });
