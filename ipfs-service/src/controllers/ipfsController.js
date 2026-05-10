@@ -1,4 +1,5 @@
-const { getIPFSClient } = require("../config/ipfs");
+
+import { getIPFSClient } from "../config/ipfs.js";
 
 async function storeImage(req, res, next) {
   try {
@@ -178,7 +179,8 @@ function detectMimeType(buffer) {
   return "application/octet-stream";
 }
 
-module.exports = {
+
+export {
   storeImage,
   getImage,
   verifyCID,

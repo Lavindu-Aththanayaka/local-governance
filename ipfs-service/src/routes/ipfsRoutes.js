@@ -1,22 +1,20 @@
-const express = require("express");
-const router = express.Router();
-const upload = require("../middleware/upload");
-const {
+
+import express from "express";
+import upload from "../middleware/upload.js";
+import {
   storeImage,
   getImage,
   verifyCID,
   unpinImage,
   healthCheck,
-} = require("../controllers/ipfsController");
+} from "../controllers/ipfsController.js";
+
+const router = express.Router();
 
 router.get("/health", healthCheck);
-
 router.post("/store", upload.single("image"), storeImage);
-
 router.get("/image/:cid", getImage);
-
 router.get("/verify/:cid", verifyCID);
-
 router.delete("/unpin/:cid", unpinImage);
 
-module.exports = router;
+export default router;

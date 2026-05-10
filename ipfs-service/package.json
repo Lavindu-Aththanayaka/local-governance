@@ -5,6 +5,7 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
+    "start:prod": "NODE_ENV=production node src/index.js",
     "dev": "nodemon src/index.js"
   },
   "dependencies": {
@@ -18,5 +19,6 @@
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
-  }
+  },
+  "type": "module"
 }

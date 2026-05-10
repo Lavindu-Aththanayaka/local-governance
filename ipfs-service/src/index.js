@@ -1,28 +1,24 @@
-require("dotenv").config();
 
-const express = require("express");
-const cors = require("cors");
-const morgan = require("morgan");
-const helmet = require("helmet");
-
-const ipfsRoutes = require("./routes/ipfsRoutes");
-const errorHandler = require("./middleware/errorHandler");
-const { getIPFSClient } = require("./config/ipfs");
+import "dotenv/config";
+import express from "express";
+import cors from "cors";
+import morgan from "morgan";
+import helmet from "helmet";
+import ipfsRoutes from "./routes/ipfsRoutes.js";
+import errorHandler from "./middleware/errorHandler.js";
+import { getIPFSClient } from "./config/ipfs.js";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
 app.use(helmet());
-
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN || "http://localhost:3000",
     methods: ["GET", "POST", "DELETE"],
   }),
 );
-
 app.use(morgan("dev"));
-
 app.use("/api/ipfs", ipfsRoutes);
 
 app.get("/", (req, res) => {
@@ -52,7 +48,6 @@ app.use(errorHandler);
 async function startServer() {
   try {
     await getIPFSClient();
-
     app.listen(PORT, () => {
       console.log(` Running on        : http://localhost:${PORT}`);
       console.log(
@@ -77,5 +72,3 @@ async function startServer() {
 }
 
 startServer();
-
-module.exports = app;

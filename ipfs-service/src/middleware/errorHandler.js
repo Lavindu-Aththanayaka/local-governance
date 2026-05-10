@@ -1,3 +1,4 @@
+
 function errorHandler(err, req, res, next) {
   console.error(`[ERROR] ${req.method} ${req.path}:`, err.message);
 
@@ -45,4 +46,4 @@ function errorHandler(err, req, res, next) {
   });
 }
 
-module.exports = errorHandler;
+export default errorHandler;

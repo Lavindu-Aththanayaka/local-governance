@@ -1,8 +1,8 @@
-const multer = require("multer");
-require("dotenv").config();
+
+import multer from "multer";
+import "dotenv/config";
 
 const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024;
-
 const ALLOWED_MIME_TYPES = (
   process.env.ALLOWED_MIME_TYPES || "image/jpeg,image/png,image/gif,image/webp"
 )
@@ -33,4 +33,4 @@ const upload = multer({
   fileFilter,
 });
 
-module.exports = upload;
+export default upload;
