@@ -20,7 +20,9 @@ services:
       - ./genesis.json:/root/genesis.json
       - node1_data:/root/node1/geth
     command:
-      - "if [ ! -d /root/node1/geth/chaindata ]; then echo 'Initializing Node 1...' && geth init --datadir /root/node1 /root/genesis.json; fi; exec geth
+      - "if [ ! -f /root/node1/nodekey ]; then echo 'Generating persistent nodekey...' && openssl rand -hex 32 > /root/node1/nodekey; fi;
+         if [ ! -d /root/node1/geth/chaindata ]; then echo 'Initializing Node 1...' && geth init --datadir /root/node1 /root/genesis.json; fi;
+         exec geth
           --datadir=/root/node1
           --nodekey=/root/node1/nodekey
           --networkid=1337
