@@ -22,6 +22,7 @@ services:
     command:
       - "if [ ! -d /root/node1/geth/chaindata ]; then echo 'Initializing Node 1...' && geth init --datadir /root/node1 /root/genesis.json; fi; exec geth
           --datadir=/root/node1
+          --nodekey=/root/node1/nodekey
           --networkid=1337
           --http
           --http.addr=0.0.0.0
