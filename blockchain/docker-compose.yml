@@ -57,18 +57,14 @@ services:
       - ./node2:/root/node2
       - ./genesis.json:/root/genesis.json
       - node2_data:/root/node2/geth
+    # Removed --mine and --miner.etherbase to allow clean initial peering and syncing
     command:
       - "if [ ! -d /root/node2/geth/chaindata ]; then echo 'Initializing Node 2...' && geth init --datadir /root/node2 /root/genesis.json; fi; exec geth
           --datadir=/root/node2
           --networkid=1337
           --port=30304
           --authrpc.port=8552
-          --mine
-          --miner.etherbase=0x151e6113e425990Ea0fBe47f1EeE01Ada1a3798c
-          --unlock=0x151e6113e425990Ea0fBe47f1EeE01Ada1a3798c
-          --password=/root/node2/password.txt
-          --bootnodes=enode://1ecf7b98e563689d79f2eca0b5ae67f7837a47845428d052a557a0bcbafab2c4f6c4b4cfd3e915d089bbdfafa41e6af076c38614d4cc68bc82b7e27615c23abf@node1:30303
-          --miner.gasprice=0
+          --bootnodes=enode://5eb24111c649070f4abcea044b8d652b116e4ac2443eaca03084ead694f6bd7ea54233b1802baa911a6ed9197e3914cac9ba34ffd14110fcf15173c5c0ed3fd0@node1:30303
           --txpool.pricelimit=0
           --rpc.allow-unprotected-txs"
 
@@ -91,18 +87,14 @@ services:
       - ./node3:/root/node3
       - ./genesis.json:/root/genesis.json
       - node3_data:/root/node3/geth
+    # Removed --mine and --miner.etherbase to allow clean initial peering and syncing
     command:
       - "if [ ! -d /root/node3/geth/chaindata ]; then echo 'Initializing Node 3...' && geth init --datadir /root/node3 /root/genesis.json; fi; exec geth
           --datadir=/root/node3
           --networkid=1337
           --port=30305
           --authrpc.port=8553
-          --mine
-          --miner.etherbase=0xAD0A0ed0e54954cF8CCe1e04991dAA6219e12105
-          --unlock=0xAD0A0ed0e54954cF8CCe1e04991dAA6219e12105
-          --password=/root/node3/password.txt
-          --bootnodes=enode://1ecf7b98e563689d79f2eca0b5ae67f7837a47845428d052a557a0bcbafab2c4f6c4b4cfd3e915d089bbdfafa41e6af076c38614d4cc68bc82b7e27615c23abf@node1:30303
-          --miner.gasprice=0
+          --bootnodes=enode://5eb24111c649070f4abcea044b8d652b116e4ac2443eaca03084ead694f6bd7ea54233b1802baa911a6ed9197e3914cac9ba34ffd14110fcf15173c5c0ed3fd0@node1:30303
           --txpool.pricelimit=0
           --rpc.allow-unprotected-txs"
 
