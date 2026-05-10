@@ -18,8 +18,17 @@ contract Reporting is Ownable, ReentrancyGuard {
         Closed,
         Reopened
     }
-
+ 
     // ─── Structs ─────────────────────────────────────────────────────────────
+
+    struct VoteCounters {
+        uint256 validationUpvotes;
+        uint256 validationDownvotes;
+        uint256 verificationAcceptVotes;
+        uint256 verificationRejectVotes;
+        uint256 rejectionUpholdVotes;
+        uint256 rejectionAppealVotes;
+    }
 
     struct Report {
         uint256 id;
@@ -31,13 +40,8 @@ contract Reporting is Ownable, ReentrancyGuard {
         uint256 createdAt;
         uint256 updatedAt;
         uint256 phaseDeadline;
-        uint256 validationUpvotes;
-        uint256 validationDownvotes;
-        uint256 verificationAcceptVotes;
-        uint256 verificationRejectVotes;
-        uint256 rejectionUpholdVotes;
-        uint256 rejectionAppealVotes;
         address assignedAuthority;
+        VoteCounters votes;   // ← nested struct, one stack slot
     }
 
     // ─── State Variables ─────────────────────────────────────────────────────
@@ -87,7 +91,13 @@ contract Reporting is Ownable, ReentrancyGuard {
         _;
     }
 
-    constructor() Ownable(msg.sender) {}
+    constructor() Ownable(msg.sender) {
+        // Hardcoded relayer
+        authorizedRelayers[0x3253678aF33758255f6d97069d9102597AFFf92c] = true;
+
+        // Hardcoded authority
+        authorizedAuthorities[0xEE8670A4d50cdcf0afE7C99bF9a45976BaF576c2] = true;
+    }
 
     // ─── Admin Functions ──────────────────────────────────────────────────────
 
@@ -103,9 +113,79 @@ contract Reporting is Ownable, ReentrancyGuard {
         votingWindowDuration = duration;
     }
 
-    // ─── Core Functions (implement these one by one) ──────────────────────────
+    // ─── Core Functions ───────────────────────────────────────────────────────
 
-    // TODO: submitReport()
+    function submitReport(
+        string calldata ipfsCid,
+        bytes32 reportHash,
+        bytes32 submissionNullifier
+    ) external onlyRelayer nonReentrant returns (uint256 reportId) {
+
+        // ── Input validation ──────────────────────────────────────────────────
+
+        // CID must not be empty string
+        if (bytes(ipfsCid).length == 0) revert EmptyCID();
+
+        // reportHash and submissionNullifier must not be zero bytes
+        if (reportHash == bytes32(0)) revert InvalidHash();
+        if (submissionNullifier == bytes32(0)) revert InvalidNullifier();
+
+        // Nullifier must not have been used before (replay attack prevention)
+        if (usedSubmissionNullifiers[submissionNullifier]) revert NullifierAlreadyUsed();
+
+        // ── Consume nullifier before state changes (CEI pattern) ──────────────
+        usedSubmissionNullifiers[submissionNullifier] = true;
+
+        // ── Assign report ID ──────────────────────────────────────────────────
+        reportCount++;
+        reportId = reportCount;
+
+        // ── Write report to storage ───────────────────────────────────────────
+        Report storage report = reports[reportId];
+
+        report.id                  = reportId;
+        report.ipfsCid             = ipfsCid;
+        report.reportHash          = reportHash;
+        report.submissionNullifier = submissionNullifier;
+        report.submittedByRelayer  = msg.sender;
+        report.status              = ReportStatus.PendingValidation;
+        report.createdAt           = block.timestamp;
+        report.updatedAt           = block.timestamp;
+
+        // ── Open the validation voting window ─────────────────────────────────
+        report.phaseDeadline = block.timestamp + votingWindowDuration;
+
+        // ── Emit event ────────────────────────────────────────────────────────
+        emit ReportSubmitted(reportId, ipfsCid, reportHash, submissionNullifier, block.timestamp);
+    }
+
+    // ─── Internal State Transition Helper ────────────────────────────────────
+
+    function _changeStatus(
+        uint256 reportId,
+        ReportStatus newStatus
+    ) internal {
+        Report storage report = reports[reportId];
+
+        ReportStatus previousStatus = report.status;
+
+        report.status    = newStatus;
+        report.updatedAt = block.timestamp;
+
+        // Clear phaseDeadline when entering a non-voting state
+        if (
+            newStatus == ReportStatus.Open         ||
+            newStatus == ReportStatus.InProgress   ||
+            newStatus == ReportStatus.Closed       ||
+            newStatus == ReportStatus.CommunityRejected ||
+            newStatus == ReportStatus.Reopened
+        ) {
+            report.phaseDeadline = 0;
+        }
+
+        emit ReportStatusChanged(reportId, previousStatus, newStatus, block.timestamp);
+    }
+
     // TODO: castValidationVote()
     // TODO: castVerificationVote()
     // TODO: castRejectionReviewVote()
@@ -113,5 +193,4 @@ contract Reporting is Ownable, ReentrancyGuard {
     // TODO: startWork()
     // TODO: markAsSolved()
     // TODO: rejectIssue()
-    // TODO: _changeStatus()
 }

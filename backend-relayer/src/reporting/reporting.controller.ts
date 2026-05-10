@@ -10,9 +10,7 @@ import { ExpressAdapter, FilesInterceptor } from '@nestjs/platform-express';
 import { ReportingService } from './reporting.service';
 import type { SubmitReportPayload } from './reporting.service';
 
-type UploadedImage = {
-  buffer: Uint8Array;
-};
+
 
 @Controller('report')
 export class ReportingController {
@@ -25,7 +23,7 @@ export class ReportingController {
   @UseInterceptors(FilesInterceptor('images', 5))
   async createReport(
     @Body() payload: SubmitReportPayload,
-    @UploadedFiles() images?: UploadedImage[],
+    @UploadedFiles() images?: Express.Multer.File[],
   ) {
     this.logger.log(`Received report creation request for ticket: ${payload.zkpTicketId}`);
     

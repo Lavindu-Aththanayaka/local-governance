@@ -7,7 +7,8 @@ import {
 } from '@nestjs/common';
 import { ethers } from 'ethers';
 import { AiOracleService } from '../ai-oracle/ai-oracle.service';
-// import { IpfsService } from '../ipfs/ipfs.service';
+import { BlockchainService } from 'src/blockchain/blockchain.service';
+import { IpfsService } from '../ipfs/ipfs.service';
 
 export interface SubmitReportPayload {
   description: string;
@@ -18,9 +19,7 @@ export interface SubmitReportPayload {
   imageHashes: string; 
 }
 
-type UploadedImage = {
-  buffer: Uint8Array;
-};
+
 
 @Injectable()
 export class ReportingService implements OnModuleInit {
@@ -30,7 +29,8 @@ export class ReportingService implements OnModuleInit {
 
   constructor(
     private readonly aiOracleService: AiOracleService,
-    // private readonly ipfsService: IpfsService,
+    private readonly blockchainService: BlockchainService,
+    private readonly ipfsService: IpfsService,
   ) {}
 
   async onModuleInit() {
@@ -50,7 +50,7 @@ export class ReportingService implements OnModuleInit {
     this.logger.log(`Loaded Government Public Address from .env: ${this.govPublicKey}`);
   }
 
-  async createReport(payload: SubmitReportPayload, images?: UploadedImage[]) {
+  async createReport(payload: SubmitReportPayload, images?: Express.Multer.File[]) {
     const { description, zkpTicketId, zkpSignature, citizenPubKey, signature, imageHashes } = payload;
 
     if (!description || !zkpTicketId || !zkpSignature || !citizenPubKey || !signature) {
@@ -129,19 +129,39 @@ export class ReportingService implements OnModuleInit {
       }
       this.logger.log('✅ AI moderation passed: Content approved.');
 
-      // STEP 5: Storage (IPFS)
-      // const ipfsCID = await this.ipfsService.uploadFiles(description, images);
-      const ipfsCID = 'ipfs://QmMockHashForNow12345'; 
-      this.logger.log(`IPFS upload mocked: ${ipfsCID}`);
+// STEP 5: Storage (IPFS) — Actual Implementation
+      this.logger.log('Initiating IPFS storage pipeline...');
+      let ipfsCID = 'ipfs://none';
 
-      // STEP 6: Blockchain Submission (temporarily disabled)
-      this.logger.warn('Blockchain submission is temporarily disabled. Returning success after AI moderation.');
-      return {
-        success: true,
-        submissionStatus: 'accepted_offchain',
-        zkpTicketId,
-        ipfsCID,
-      };
+      if (images && images.length > 0) {
+        this.logger.log(`Uploading ${images.length} approved media file(s) to IPFS...`);
+        // Upload multiple images concurrently to minimize latency
+        const uploadPromises = images.map((img) => this.ipfsService.uploadImage(img));
+        const uploadedCIDs = await Promise.all(uploadPromises);
+        
+        // Join multiple CIDs with a comma (or adjust based on your smart contract schema)
+        ipfsCID = uploadedCIDs.join(',');
+        this.logger.log(`✅ Media successfully stored on IPFS. Final CID reference: ${ipfsCID}`);
+      } else {
+        this.logger.log('No media attached to report; proceeding with fallback CID reference.');
+      }
+
+    // STEP 6: Blockchain Submission
+    this.logger.log('Submitting report to blockchain...');
+    const chainResult = await this.blockchainService.submitReportToChain(
+      ipfsCID,
+      messageHash,       // this is the solidityPackedKeccak256 hash — already a bytes32 hex string
+      zkpTicketId,       // used as the submission nullifier
+    );
+
+    return {
+      success: true,
+      submissionStatus: 'confirmed_onchain',
+      zkpTicketId,
+      ipfsCID,
+      transactionHash: chainResult.transactionHash,
+      blockNumber: chainResult.blockNumber,
+    };
 
     } catch (error: any) {
       this.logger.error(`Submission pipeline failed: ${error.message}`);

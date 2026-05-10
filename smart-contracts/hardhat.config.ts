@@ -1,4 +1,5 @@
 import hardhatToolboxMochaEthersPlugin from "@nomicfoundation/hardhat-toolbox-mocha-ethers";
+import "@nomicfoundation/hardhat-ethers";
 import { configVariable, defineConfig } from "hardhat/config";
 
 export default defineConfig({
@@ -15,6 +16,7 @@ export default defineConfig({
             enabled: true,
             runs: 200,
           },
+          viaIR: true,
         },
       },
     },
@@ -34,5 +36,13 @@ export default defineConfig({
       url: configVariable("SEPOLIA_RPC_URL"),
       accounts: [configVariable("SEPOLIA_PRIVATE_KEY")],
     },
+    gethPrivate: {
+          type: "http", // FIXED: Must be "http" even for secure HTTPS URLs
+          chainType: "l1", // FIXED: Added for consistent Hardhat v3 validation
+          url: "https://rpc.internalbuildtools.online",
+          chainId: 1337,
+          accounts: [configVariable("DEPLOYER_PRIVATE_KEY")], // Recommended: Native keystore variable
+          gasPrice: 0,
+        },
   },
 });
