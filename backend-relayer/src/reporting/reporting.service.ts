@@ -4,6 +4,7 @@ import {
   BadRequestException,
   UnauthorizedException,
   OnModuleInit,
+  InternalServerErrorException
 } from '@nestjs/common';
 import { ethers } from 'ethers';
 import { AiOracleService } from '../ai-oracle/ai-oracle.service';
@@ -104,6 +105,12 @@ export class ReportingService implements OnModuleInit {
         ethers.getBytes(messageHash),
         signature
       );
+      const citizenPseudonym = ethers.keccak256(
+        ethers.solidityPacked(
+            ['address', 'string'],
+            [citizenPubKey, process.env.PSEUDONYM_DOMAIN_SALT]   // e.g. "CivicReport-v1"
+        )
+      );
 
       if (recoveredCitizenAddress.toLowerCase() !== citizenPubKey.toLowerCase()) {
          this.logger.error(`Citizen signature mismatch. Data tampered in transit.`);
@@ -152,6 +159,7 @@ export class ReportingService implements OnModuleInit {
       ipfsCID,
       messageHash,       // this is the solidityPackedKeccak256 hash — already a bytes32 hex string
       zkpTicketId,       // used as the submission nullifier
+      citizenPseudonym
     );
 
     return {
@@ -168,5 +176,25 @@ export class ReportingService implements OnModuleInit {
       if (error.status) throw error; 
       throw new BadRequestException('Cryptographic verification, AI moderation, or blockchain submission failed');
     }
+  }
+
+  getPseudonym(citizenAddress: string): { pseudonym: string } {
+    const salt = process.env.PSEUDONYM_DOMAIN_SALT;
+ 
+    if (!salt) {
+      this.logger.error('PSEUDONYM_DOMAIN_SALT is not set in environment');
+      throw new InternalServerErrorException('Pseudonym derivation is not configured');
+    }
+ 
+    const pseudonym = ethers.keccak256(
+      ethers.solidityPacked(
+        ['address', 'string'],
+        [citizenAddress, salt],
+      ),
+    );
+ 
+    this.logger.log(`Pseudonym derived for ${citizenAddress}: ${pseudonym}`);
+ 
+    return { pseudonym };
   }
 }

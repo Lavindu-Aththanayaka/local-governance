@@ -5,10 +5,15 @@ import {
   UseInterceptors,
   UploadedFiles,
   Logger,
+  Get,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import { ExpressAdapter, FilesInterceptor } from '@nestjs/platform-express';
 import { ReportingService } from './reporting.service';
 import type { SubmitReportPayload } from './reporting.service';
+import { CitizenAuthGuard } from './guards/citizen-auth.guard';
+import type {AuthenticatedRequest} from './guards/citizen-auth.guard';
 
 
 
@@ -39,5 +44,14 @@ export class ReportingController {
       message: 'Report successfully validated and accepted.',
       data: reportResult,
     };
+  }
+
+  @Get('my-pseudonym')
+  @UseGuards(CitizenAuthGuard)
+  getMyPseudonym(@Req() req: AuthenticatedRequest) {
+    this.logger.log(
+      `Pseudonym requested by authenticated citizen: ${req.citizen.address}`,
+    );
+    return this.reportingService.getPseudonym(req.citizen.address);
   }
 }
