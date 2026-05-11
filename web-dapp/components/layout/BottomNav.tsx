@@ -10,7 +10,7 @@ export function BottomNav({ className = "", isSidebar = false }: { className?: s
   const navItems = [
     { label: "Feed", href: "/feed", icon: Layers },
     { label: isSidebar ? "Reports" : "Report", href: "/report", icon: isSidebar ? BarChart2 : PlusCircle },
-    { label: "Profile", href: "/auth", icon: User },
+    { label: "Profile", href: "/profile", icon: User },
     { label: "Notifications", href: "#", icon: Bell },
   ];
 
