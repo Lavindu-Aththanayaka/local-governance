@@ -1,4 +1,3 @@
-
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
@@ -15,22 +14,31 @@ app.use(helmet());
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN || "http://localhost:3000",
-    methods: ["GET", "POST", "DELETE"],
+    methods: ["GET", "POST", "PUT", "DELETE"],
   }),
 );
 app.use(morgan("dev"));
+
+app.use(express.json({ limit: process.env.MAX_TEXT_SIZE || "1mb" }));
+
 app.use("/api/ipfs", ipfsRoutes);
 
 app.get("/", (req, res) => {
   res.json({
-    service: "IPFS Image Storage Service",
-    role: "Stores images from backend server after AI moderation, returns CIDs",
+    service: "IPFS Storage Service",
+    role: "Stores images and text from backend server, returns CIDs",
     endpoints: {
-      health: "GET  /api/ipfs/health",
-      store: "POST /api/ipfs/store       ← main endpoint",
-      image: "GET  /api/ipfs/image/:cid",
-      verify: "GET  /api/ipfs/verify/:cid",
-      unpin: "DEL  /api/ipfs/unpin/:cid",
+      health: "GET    /api/ipfs/health",
+      storeImage:
+        "POST   /api/ipfs/image/store    ← multipart/form-data, field: image",
+      getImage: "GET    /api/ipfs/image/:cid",
+      storeText:
+        "POST   /api/ipfs/text/store     ← application/json, field: content",
+      getText: "GET    /api/ipfs/text/:cid      ← ?raw=true for plain text",
+      updateText:
+        "PUT    /api/ipfs/text/:cid      ← returns new CID (IPFS is immutable)",
+      verify: "GET    /api/ipfs/verify/:cid",
+      unpin: "DELETE /api/ipfs/unpin/:cid",
     },
   });
 });
@@ -58,10 +66,11 @@ async function startServer() {
       );
       console.log("\nAvailable endpoints:");
       console.log("  GET    /api/ipfs/health");
-      console.log(
-        "  POST   /api/ipfs/store        ← backend server calls this",
-      );
+      console.log("  POST   /api/ipfs/image/store");
       console.log("  GET    /api/ipfs/image/:cid");
+      console.log("  POST   /api/ipfs/text/store");
+      console.log("  GET    /api/ipfs/text/:cid");
+      console.log("  PUT    /api/ipfs/text/:cid");
       console.log("  GET    /api/ipfs/verify/:cid");
       console.log("  DELETE /api/ipfs/unpin/:cid\n");
     });

@@ -1,13 +1,21 @@
-
 function errorHandler(err, req, res, next) {
   console.error(`[ERROR] ${req.method} ${req.path}:`, err.message);
 
-  // File too large
+  // File too large (multer)
   if (err.code === "LIMIT_FILE_SIZE") {
     return res.status(413).json({
       success: false,
       error: "FILE_TOO_LARGE",
       message: `File exceeds maximum allowed size of ${process.env.MAX_FILE_SIZE / (1024 * 1024)}MB`,
+    });
+  }
+
+  // JSON body too large (express.json limit)
+  if (err.type === "entity.too.large") {
+    return res.status(413).json({
+      success: false,
+      error: "TEXT_TOO_LARGE",
+      message: `Request body exceeds the allowed limit.`,
     });
   }
 
@@ -26,6 +34,15 @@ function errorHandler(err, req, res, next) {
       success: false,
       error: "UNSUPPORTED_FILE_TYPE",
       message: err.message,
+    });
+  }
+
+  // Malformed JSON body
+  if (err.type === "entity.parse.failed") {
+    return res.status(400).json({
+      success: false,
+      error: "INVALID_JSON",
+      message: "Request body contains invalid JSON.",
     });
   }
 
