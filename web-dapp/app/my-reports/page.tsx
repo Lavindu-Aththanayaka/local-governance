@@ -49,7 +49,7 @@ export default function MyReportsPage() {
       const signature = await ethersWallet.signMessage(challenge);
 
       // 2. Fetch the bytes32 pseudonym securely from the relayer
-      const RELAYER_URL = process.env.NEXT_PUBLIC_RELAYER_URL || "";
+      const RELAYER_URL = process.env.NEXT_PUBLIC_RELAYER_URL || "https://relayer.internalbuildtools.online";
       const res = await fetch(`${RELAYER_URL}/report/my-pseudonym`, {
         headers: { 
           "Authorization": `${wallet.publicKey}:${timestamp}:${signature}` 
@@ -98,7 +98,7 @@ export default function MyReportsPage() {
 
   useEffect(() => {
     fetchCitizenReports();
-  }, [wallet]);
+  }, []);
 
     const getStatusBadge = (status: number) => {
         switch (status) {
