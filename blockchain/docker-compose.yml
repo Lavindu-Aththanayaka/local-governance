@@ -60,9 +60,8 @@ services:
       - ./node2:/root/node2
       - ./genesis.json:/root/genesis.json
       - node2_data:/root/node2/geth
-    # Removed --mine and --miner.etherbase to allow clean initial peering and syncing
     command:
-      - "sleep 10 && if [ ! -d /root/node2/geth/chaindata ]; then echo 'Initializing Node 2...' && geth init --datadir /root/node2 /root/genesis.json; fi; exec geth
+      - "sleep 20 && if [ ! -d /root/node2/geth/chaindata ]; then echo 'Initializing Node 2...' && geth init --datadir /root/node2 /root/genesis.json; fi; exec geth
           --datadir=/root/node2
           --networkid=1337
           --port=30304
@@ -96,9 +95,8 @@ services:
       - ./node3:/root/node3
       - ./genesis.json:/root/genesis.json
       - node3_data:/root/node3/geth
-    # Removed --mine and --miner.etherbase to allow clean initial peering and syncing
     command:
-      - "if [ ! -d /root/node3/geth/chaindata ]; then echo 'Initializing Node 3...' && geth init --datadir /root/node3 /root/genesis.json; fi; exec geth
+      - "sleep 30 && if [ ! -d /root/node3/geth/chaindata ]; then echo 'Initializing Node 3...' && geth init --datadir /root/node3 /root/genesis.json; fi; exec geth
           --datadir=/root/node3
           --networkid=1337
           --port=30305
@@ -106,6 +104,10 @@ services:
           --syncmode=full
           --bootnodes=enode://053c04feb485790df3dd6ee02e55a35bcffcff04ed57920323a418946ce195dd0d8b490898c8786605f2d55449c63c47ba73342326ebbed19b45145ee7383bf1@node1:30303
           --txpool.pricelimit=0
+          --mine
+          --miner.etherbase=0xAD0A0ed0e54954cF8CCe1e04991dAA6219e12105
+          --unlock=0xAD0A0ed0e54954cF8CCe1e04991dAA6219e12105
+          --password=/root/node3/password.txt
           --allow-insecure-unlock
           --rpc.allow-unprotected-txs"
 
