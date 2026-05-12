@@ -553,7 +553,7 @@ export default function IssueDetailPage({
             )}
 
             {/* IPFS */}
-            <div className="bg-slate-50 rounded-xl border border-slate-200 px-5 py-4">
+            {/* <div className="bg-slate-50 rounded-xl border border-slate-200 px-5 py-4">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
                 IPFS Content Identifier
               </p>
@@ -561,7 +561,7 @@ export default function IssueDetailPage({
               <p className="text-xs font-mono text-slate-600 break-all">
                 {report.ipfsCid}
               </p>
-            </div>
+            </div> */}
           </div>
 
           {/* RIGHT */}
