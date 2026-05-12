@@ -7,6 +7,7 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from fastapi.middleware.cors import CORSMiddleware
+import logging
 
 import requests
 from dotenv import load_dotenv
@@ -22,6 +23,10 @@ app = FastAPI(
     description="Secure AI moderation aggregator for civic report moderation.",
     version="2.1.0",
 )
+
+logging.basicConfig(level=logging.WARNING)
+logger = logging.getLogger("ai-oracle-aggregator")
+
 cors_origins_raw = os.getenv(
     "ALLOWED_CORS_ORIGINS",
     "http://localhost:3001,https://relayer.internalbuildtools.online",
@@ -33,19 +38,6 @@ ALLOWED_CORS_ORIGINS = [
     if origin.strip()
 ]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=[
-        "Content-Type",
-        "x-api-key",
-        "x-relayer-signature",
-        "x-request-timestamp",
-        "x-request-nonce",
-    ],
-)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_CORS_ORIGINS,
@@ -151,6 +143,7 @@ def recover_signer(message_hash: str, signature: str) -> str:
     message = encode_defunct(text=message_hash)
     return Account.recover_message(message, signature=signature).lower()
 
+    
 
 def parse_timestamp(timestamp_str: str) -> datetime:
     try:
@@ -281,29 +274,55 @@ async def process_uploaded_files(files: Optional[List[UploadFile]]) -> List[Medi
 def verify_relayer_signature(request_hash: str, signature: str) -> str:
     """
     Verifies that the moderation request was signed by the trusted backend relayer.
-
-    The relayer address is NOT taken from a request header.
-    Instead, it is recovered from the signature and compared with
+    The relayer address is recovered from the signature and compared with
     TRUSTED_RELAYER_ADDRESS from the environment.
     """
 
     if not TRUSTED_RELAYER_ADDRESS:
+        logger.error("TRUSTED_RELAYER_ADDRESS is not configured")
         raise HTTPException(status_code=500, detail="Trusted relayer address not configured")
 
     try:
         recovered_address = recover_signer(request_hash, signature)
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid relayer signature")
+    except Exception as e:
+        logger.error("Failed to recover relayer signer: %s", str(e))
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "error": "Invalid relayer signature",
+                "debug": str(e),
+            },
+        )
 
-    if recovered_address != TRUSTED_RELAYER_ADDRESS:
-        raise HTTPException(status_code=401, detail="Request not signed by trusted relayer")
+    recovered_address = recovered_address.strip().lower()
+    trusted_address = TRUSTED_RELAYER_ADDRESS.strip().strip('"').strip("'").lower()
+
+    # Keep only warnings/errors for authentication flow.
+
+    if recovered_address != trusted_address:
+        logger.warning(
+            "Relayer signature mismatch. recovered=%s trusted=%s request_hash=%s",
+            recovered_address,
+            trusted_address,
+            request_hash,
+        )
+
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "error": "Request not signed by trusted relayer",
+                "recovered_address": recovered_address,
+                "trusted_relayer_address": trusted_address,
+                "request_hash": request_hash,
+            },
+        )
 
     return recovered_address
 
 
 def call_oracle(oracle_name: str, oracle_url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     try:
-        response = requests.post(oracle_url, json=payload, timeout=60)
+        response = requests.post(oracle_url, json=payload, timeout=120)
 
         if response.status_code >= 400:
             return {
@@ -485,8 +504,16 @@ async def moderate_report(
     for oracle_name, oracle_url in ORACLE_URLS.items():
         vote = call_oracle(oracle_name, oracle_url, oracle_payload)
         oracle_votes.append(vote)
-
+    
     aggregation = aggregate_votes(oracle_votes)
+
+    logger.info(
+        "Aggregation decision=%s confidence=%s risk=%s summary=%s",
+        aggregation["final_decision"],
+        aggregation["final_confidence"],
+        aggregation["risk_level"],
+        aggregation["summary_explanation"],
+    )
 
     decision_object = {
         "report_hash": report_hash,
