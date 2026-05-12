@@ -96,7 +96,7 @@ services:
       - ./genesis.json:/root/genesis.json
       - node3_data:/root/node3/geth
     command:
-      - "if [ ! -d /root/node3/geth/chaindata ]; then echo 'Initializing Node 3...' && geth init --datadir /root/node3 /root/genesis.json; fi; exec geth
+      - "sleep 30 && if [ ! -d /root/node3/geth/chaindata ]; then echo 'Initializing Node 3...' && geth init --datadir /root/node3 /root/genesis.json; fi; exec geth
           --datadir=/root/node3
           --networkid=1337
           --port=30305
