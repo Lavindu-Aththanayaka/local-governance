@@ -4,12 +4,12 @@ import {
   BadRequestException,
   UnauthorizedException,
   OnModuleInit,
+  InternalServerErrorException
 } from '@nestjs/common';
 import { ethers } from 'ethers';
-import { BlockchainService } from '../blockchain/blockchain.service';
-// import { IpfsService } from '../ipfs/ipfs.service';
-// import { AiOracleService } from '../ai-oracle/ai-oracle.service';
-import multer from 'multer';
+import { AiOracleService } from '../ai-oracle/ai-oracle.service';
+import { BlockchainService } from 'src/blockchain/blockchain.service';
+import { IpfsService } from '../ipfs/ipfs.service';
 
 export interface SubmitReportPayload {
   description: string;
@@ -17,55 +17,42 @@ export interface SubmitReportPayload {
   zkpSignature: string;
   citizenPubKey: string;
   signature: string;
+  imageHashes: string; 
 }
+
+
 
 @Injectable()
 export class ReportingService implements OnModuleInit {
   private readonly logger = new Logger(ReportingService.name);
 
-  // We will store the fetched key here dynamically instead of hardcoding it
   private govPublicKey: string = '';
 
   constructor(
+    private readonly aiOracleService: AiOracleService,
     private readonly blockchainService: BlockchainService,
-    // private readonly ipfsService: IpfsService,
-    // private readonly aiOracleService: AiOracleService,
+    private readonly ipfsService: IpfsService,
   ) {}
 
-  // This runs automatically when the NestJS application starts
   async onModuleInit() {
-    await this.fetchGovPublicKey();
+    this.loadGovPublicKeyFromEnv();
   }
 
-  // Helper method to fetch the key from your ZKP simulator
-  private async fetchGovPublicKey() {
-    try {
-      // Assuming your ZKP simulator runs on port 3001 locally. 
-      // You can override this in your Relayer's .env if needed.
-      const zkpUrl = process.env.ZKP_SIMULATOR_URL || 'http://localhost:3001';
-      
-      this.logger.log(`Fetching Government Public Key from ${zkpUrl}...`);
-      const response = await fetch(`${zkpUrl}/api/public-key`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP Error: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      this.govPublicKey = data.authorityAddress;
-      
-      this.logger.log(`✅ Successfully loaded Gov Public Key: ${this.govPublicKey}`);
-    } catch (error: any) {
-      this.logger.warn(`⚠️ Failed to fetch Gov Public Key from simulator: ${error.message}`);
-      
-      // Fallback: If the simulator is offline during startup, try to use the .env variable
-      this.govPublicKey = process.env.GOV_PUBLIC_KEY || '0xYourGovWalletPublicKeyHere';
-      this.logger.log(`🔄 Falling back to .env GOV_PUBLIC_KEY: ${this.govPublicKey}`);
+  private loadGovPublicKeyFromEnv() {
+    const govPublicAddress = process.env.GOV_PUBLIC_ADDRESS;
+
+    if (!govPublicAddress) {
+      const message = 'Missing GOV_PUBLIC_ADDRESS in environment configuration';
+      this.logger.error(message);
+      throw new Error(message);
     }
+
+    this.govPublicKey = govPublicAddress;
+    this.logger.log(`Loaded Government Public Address from .env: ${this.govPublicKey}`);
   }
 
-  async createReport(payload: SubmitReportPayload, image?: Express.Multer.File) {
-    const { description, zkpTicketId, zkpSignature, citizenPubKey, signature } = payload;
+  async createReport(payload: SubmitReportPayload, images?: Express.Multer.File[]) {
+    const { description, zkpTicketId, zkpSignature, citizenPubKey, signature, imageHashes } = payload;
 
     if (!description || !zkpTicketId || !zkpSignature || !citizenPubKey || !signature) {
       throw new BadRequestException('Missing required fields in payload');
@@ -78,21 +65,51 @@ export class ReportingService implements OnModuleInit {
         zkpSignature
       );
 
-      // Compare against our dynamically fetched govPublicKey
       if (recoveredGovAddress.toLowerCase() !== this.govPublicKey.toLowerCase()) {
          this.logger.error(`Gov signature mismatch. Expected: ${this.govPublicKey}, Got: ${recoveredGovAddress}`);
          throw new UnauthorizedException('Invalid or forged government ticket');
       }
 
-      // STEP 2: Verify Citizen Payload Signature
+      // STEP 2: Parse and Verify Image Hashes
+      let parsedImageHashes: string[] = [];
+      if (imageHashes) {
+        try {
+          parsedImageHashes = JSON.parse(imageHashes);
+        } catch (e) {
+          throw new BadRequestException('Invalid imageHashes format. Expected JSON array.');
+        }
+      }
+
+      if (images && images.length > 0) {
+        if (images.length !== parsedImageHashes.length) {
+          throw new BadRequestException('Mismatch between uploaded images count and provided hashes.');
+        }
+
+        for (let i = 0; i < images.length; i++) {
+          const computedHash = ethers.keccak256(images[i].buffer);
+          if (computedHash !== parsedImageHashes[i]) {
+             this.logger.error(`Image hash mismatch at index ${i}. Possible tampering.`);
+             throw new UnauthorizedException(`Image at index ${i} tampered in transit or hash mismatch.`);
+          }
+        }
+      }
+
+      // STEP 3: Verify Citizen Payload Signature
+      const combinedImageHashes = parsedImageHashes.join("");
       const messageHash = ethers.solidityPackedKeccak256(
-        ['string', 'string'],
-        [description, zkpTicketId]
+        ['string', 'string', 'string'],
+        [description, zkpTicketId, combinedImageHashes]
       );
 
       const recoveredCitizenAddress = ethers.verifyMessage(
         ethers.getBytes(messageHash),
         signature
+      );
+      const citizenPseudonym = ethers.keccak256(
+        ethers.solidityPacked(
+            ['address', 'string'],
+            [citizenPubKey, process.env.PSEUDONYM_DOMAIN_SALT]   // e.g. "CivicReport-v1"
+        )
       );
 
       if (recoveredCitizenAddress.toLowerCase() !== citizenPubKey.toLowerCase()) {
@@ -100,28 +117,84 @@ export class ReportingService implements OnModuleInit {
          throw new UnauthorizedException('Invalid citizen signature. Payload may be tampered.');
       }
 
-      this.logger.log('✅ Cryptographic verification passed. Payload is secure.');
-
-      // STEP 3: Storage (IPFS)
-      const ipfsCID = 'ipfs://QmMockHashForNow12345'; 
-      this.logger.log(`IPFS upload mocked: ${ipfsCID}`);
+      this.logger.log('✅ Cryptographic verification passed. Payload and images are secure.');
 
       // STEP 4: AI Moderation
-      this.logger.log('AI moderation mocked: content approved');
-
-      // STEP 5: Blockchain Submission
-      const txResult = await this.blockchainService.submitReportToChain(
-        ipfsCID,
-        zkpTicketId
+      this.logger.log('Initiating AI moderation...');
+      const aiVerdict = await this.aiOracleService.moderateContent(
+        description,
+        images,
+        zkpTicketId,
+        signature,
+        zkpSignature,
+        messageHash // We pass the solidityPacked message hash as the payload_hash
       );
 
-      this.logger.log(`Report successfully processed and sent to chain.`);
-      return txResult;
+      if (!aiVerdict.isApproved) {
+        this.logger.warn(`Report rejected by AI. Reason: ${aiVerdict.reason}`);
+        throw new BadRequestException(`Content rejected by AI moderation: ${aiVerdict.reason || 'Violates community guidelines'}`);
+      }
+      this.logger.log('✅ AI moderation passed: Content approved.');
+
+// STEP 5: Storage (IPFS) — Actual Implementation
+      this.logger.log('Initiating IPFS storage pipeline...');
+      let ipfsCID = 'ipfs://none';
+
+      if (images && images.length > 0) {
+        this.logger.log(`Uploading ${images.length} approved media file(s) to IPFS...`);
+        // Upload multiple images concurrently to minimize latency
+        const uploadPromises = images.map((img) => this.ipfsService.uploadImage(img));
+        const uploadedCIDs = await Promise.all(uploadPromises);
+        
+        // Join multiple CIDs with a comma (or adjust based on your smart contract schema)
+        ipfsCID = uploadedCIDs.join(',');
+        this.logger.log(`✅ Media successfully stored on IPFS. Final CID reference: ${ipfsCID}`);
+      } else {
+        this.logger.log('No media attached to report; proceeding with fallback CID reference.');
+      }
+
+    // STEP 6: Blockchain Submission
+    this.logger.log('Submitting report to blockchain...');
+    const chainResult = await this.blockchainService.submitReportToChain(
+      ipfsCID,
+      messageHash,       // this is the solidityPackedKeccak256 hash — already a bytes32 hex string
+      zkpTicketId,       // used as the submission nullifier
+      citizenPseudonym
+    );
+
+    return {
+      success: true,
+      submissionStatus: 'confirmed_onchain',
+      zkpTicketId,
+      ipfsCID,
+      transactionHash: chainResult.transactionHash,
+      blockNumber: chainResult.blockNumber,
+    };
 
     } catch (error: any) {
       this.logger.error(`Submission pipeline failed: ${error.message}`);
       if (error.status) throw error; 
-      throw new BadRequestException('Cryptographic verification or blockchain submission failed');
+      throw new BadRequestException('Cryptographic verification, AI moderation, or blockchain submission failed');
     }
+  }
+
+  getPseudonym(citizenAddress: string): { pseudonym: string } {
+    const salt = process.env.PSEUDONYM_DOMAIN_SALT;
+ 
+    if (!salt) {
+      this.logger.error('PSEUDONYM_DOMAIN_SALT is not set in environment');
+      throw new InternalServerErrorException('Pseudonym derivation is not configured');
+    }
+ 
+    const pseudonym = ethers.keccak256(
+      ethers.solidityPacked(
+        ['address', 'string'],
+        [citizenAddress, salt],
+      ),
+    );
+ 
+    this.logger.log(`Pseudonym derived for ${citizenAddress}: ${pseudonym}`);
+ 
+    return { pseudonym };
   }
 }
