@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { ethers } from "ethers";
 import {
   AlertCircle,
@@ -14,12 +15,15 @@ import {
   MapPin,
   ChevronDown,
   Plus,
-  Minus,
   Share2,
   Globe,
 } from "lucide-react";
 import { useCitizen } from "@/context/CitizenContext";
 import Link from "next/link";
+import type { PickedLocation } from "@/components/LocationPicker";
+
+// Leaflet must not render on the server
+const LocationPicker = dynamic(() => import("@/components/LocationPicker"), { ssr: false });
 
 const CATEGORIES = [
   "Infrastructure Damage",
@@ -81,6 +85,7 @@ export default function ReportPage() {
   const [category, setCategory] = useState("Infrastructure Damage");
   const [description, setDescription] = useState("");
   const [images, setImages] = useState<File[]>([]);
+  const [location, setLocation] = useState<PickedLocation | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isProcessingImages, setIsProcessingImages] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{
@@ -167,6 +172,11 @@ export default function ReportPage() {
       formData.append("signature", signature);
       formData.append("imageHashes", JSON.stringify(imageHashes));
       images.forEach((img) => formData.append("images", img));
+      if (location) {
+        formData.append("latitude",  location.lat.toString());
+        formData.append("longitude", location.lng.toString());
+        formData.append("locationAddress", location.address);
+      }
 
       const RELAYER_URL = process.env.NEXT_PUBLIC_RELAYER_URL || "";
       const response = await fetch(`${RELAYER_URL}/report`, {
@@ -330,6 +340,12 @@ export default function ReportPage() {
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* Location – mobile */}
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Location (Optional)</label>
+              <LocationPicker value={location} onChange={setLocation} />
             </div>
 
             <button
@@ -503,57 +519,17 @@ export default function ReportPage() {
 
             {/* ── Right Column – Step 3: Location ── */}
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-              <div className="p-6 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold shrink-0">
-                    3
-                  </div>
-                  <h2 className="text-lg font-bold text-slate-900">Location</h2>
+              <div className="p-6 pb-4 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold shrink-0">
+                  3
                 </div>
-                <button
-                  type="button"
-                  className="flex items-center gap-1.5 text-blue-600 text-xs font-semibold hover:text-blue-800 transition-colors"
-                >
-                  <MapPin className="h-3.5 w-3.5" />
-                  Auto-detect
-                </button>
+                <h2 className="text-lg font-bold text-slate-900">Location</h2>
+                {location && (
+                  <span className="ml-auto text-[10px] font-semibold text-green-600 bg-green-50 px-2 py-1 rounded-full">● Pinned</span>
+                )}
               </div>
-
-              {/* Search bar */}
-              <div className="px-6 pb-4">
-                <div className="flex items-center gap-2 bg-slate-900 rounded-xl px-4 py-2.5">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-                  <input
-                    type="text"
-                    placeholder="Search address or pin location..."
-                    className="flex-1 bg-transparent text-sm text-slate-300 placeholder:text-slate-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* Map */}
-              <div className="flex-1 relative mx-6 mb-6 rounded-xl overflow-hidden min-h-[320px]">
-                <img
-                  src="/map_placeholder.png"
-                  alt="Location Map"
-                  className="w-full h-full object-cover"
-                />
-                {/* Zoom controls */}
-                <div className="absolute top-3 right-3 flex flex-col gap-1">
-                  <button type="button" className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-lg flex items-center justify-center shadow text-slate-700 hover:bg-white transition-colors">
-                    <Plus className="h-4 w-4" />
-                  </button>
-                  <button type="button" className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-lg flex items-center justify-center shadow text-slate-700 hover:bg-white transition-colors">
-                    <Minus className="h-4 w-4" />
-                  </button>
-                </div>
-                {/* Pin label */}
-                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-lg">
-                  <MapPin className="h-3 w-3" />
-                  Issue Location
-                </div>
+              <div className="px-6 pb-6">
+                <LocationPicker value={location} onChange={setLocation} />
               </div>
             </div>
           </div>
