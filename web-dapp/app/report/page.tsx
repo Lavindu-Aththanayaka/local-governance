@@ -165,6 +165,7 @@ export default function ReportPage() {
 
       // Step 3: Prepare FormData
       const formData = new FormData();
+      formData.append("category", category);
       formData.append("description", description);
       formData.append("zkpTicketId", currentTicket.ticketId);
       formData.append("zkpSignature", currentTicket.signature);
@@ -173,9 +174,7 @@ export default function ReportPage() {
       formData.append("imageHashes", JSON.stringify(imageHashes));
       images.forEach((img) => formData.append("images", img));
       if (location) {
-        formData.append("latitude",  location.lat.toString());
-        formData.append("longitude", location.lng.toString());
-        formData.append("locationAddress", location.address);
+        formData.append("location", JSON.stringify({ lat: location.lat, lng: location.lng, address: location.address }));
       }
 
       const RELAYER_URL = process.env.NEXT_PUBLIC_RELAYER_URL || "";
