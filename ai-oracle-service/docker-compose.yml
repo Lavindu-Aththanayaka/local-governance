@@ -29,8 +29,11 @@ services:
       AI_SUPPORTING_SPAM_THRESHOLD: ${AI_SUPPORTING_SPAM_THRESHOLD:-0.65}
       RULE_REJECT_THRESHOLD: ${RULE_REJECT_THRESHOLD:-0.60}
       RULE_SUPPORT_THRESHOLD: ${RULE_SUPPORT_THRESHOLD:-0.25}
+      HF_HOME: /models
     expose:
       - "8002"
+    volumes:
+      - hf-model-cache:/models
     networks:
       - oracle-net
 
