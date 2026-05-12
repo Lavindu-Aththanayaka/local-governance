@@ -63,11 +63,15 @@ const getStatusDetails = (status: number) => {
   }
 };
 
+const LIMIT = 20;
+
 export default function FeedPage() {
   const [filter, setFilter] = useState("All Issues");
   const [sort, setSort] = useState("Most Recent");
-  
+
   const [reports, setReports] = useState<PublicReport[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -85,18 +89,19 @@ export default function FeedPage() {
       const provider = new ethers.JsonRpcProvider(RPC_URL);
       const contract = new ethers.Contract(CONTRACT_ADDRESS, PUBLIC_REPORTING_ABI, provider);
 
-      // Fetch the most recent 20 reports from the blockchain
-      const [pageArray, ] = await contract.getAllReports(0, 20);
+      // Call getAllReports with current pagination offset (same as all-reports page)
+      const [pageArray, totalReports] = await contract.getAllReports(offset, LIMIT);
 
       const formattedReports: PublicReport[] = pageArray.map((r: any) => ({
         id: r.id.toString(),
         ipfsCid: r.ipfsCid,
         status: Number(r.status),
-        createdAt: Number(r.createdAt) * 1000,
+        createdAt: Number(r.createdAt) * 1000, // Convert EVM timestamp to ms
         upvotes: Number(r.votes.validationUpvotes),
         downvotes: Number(r.votes.validationDownvotes),
       }));
 
+      setTotalCount(Number(totalReports));
       setReports(formattedReports);
     } catch (err: any) {
       console.error("Error fetching feed:", err);
@@ -106,14 +111,15 @@ export default function FeedPage() {
     }
   };
 
+  // Re-fetch whenever offset changes (pagination)
   useEffect(() => {
     fetchPublicReports();
-  }, []);
+  }, [offset]);
 
   const featuredReport = reports.length > 0 ? reports[0] : null;
   const gridReports = reports.length > 1 ? reports.slice(1, 3) : [];
   const sidebarReports = reports.length > 3 ? reports.slice(3, 8) : [];
-  const bottomGridReports = reports.length > 1 ? reports.slice(1) : []; 
+  const bottomGridReports = reports.length > 1 ? reports.slice(1) : [];
 
   return (
     <>
@@ -220,6 +226,29 @@ export default function FeedPage() {
           )}
         </div>
 
+        {/* Mobile Pagination */}
+        {totalCount > LIMIT && (
+          <div className="flex justify-center items-center gap-4 px-4 pb-6">
+            <button
+              className="px-5 py-2 rounded-full text-sm font-semibold border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 transition-colors"
+              disabled={offset === 0 || loading}
+              onClick={() => setOffset((prev) => Math.max(0, prev - LIMIT))}
+            >
+              ← Previous
+            </button>
+            <span className="text-xs text-slate-500 font-medium">
+              {offset + 1}–{Math.min(offset + LIMIT, totalCount)} of {totalCount}
+            </span>
+            <button
+              className="px-5 py-2 rounded-full text-sm font-semibold border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 transition-colors"
+              disabled={offset + LIMIT >= totalCount || loading}
+              onClick={() => setOffset((prev) => prev + LIMIT)}
+            >
+              Next →
+            </button>
+          </div>
+        )}
+
         <Link
           href="/report"
           className="fixed bottom-20 right-4 w-14 h-14 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-blue-600/30 hover:-translate-y-1 hover:shadow-xl transition-all z-40"
@@ -233,8 +262,15 @@ export default function FeedPage() {
         <div className="flex flex-col flex-1 px-8 pt-6 pb-0">
 
           <div className="flex items-center justify-between mb-5">
-            <h1 className="text-4xl font-extrabold text-slate-900">Community Feed</h1>
-            <button onClick={fetchPublicReports} className="flex items-center gap-2 px-4 py-2 border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-colors text-sm">
+            <div>
+              <h1 className="text-4xl font-extrabold text-slate-900">Community Feed</h1>
+              {totalCount > 0 && (
+                <p className="text-sm text-slate-500 mt-1">
+                  Displaying {reports.length} of {totalCount} total reports on AuraChain
+                </p>
+              )}
+            </div>
+            <button onClick={fetchPublicReports} disabled={loading} className="flex items-center gap-2 px-4 py-2 border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 disabled:opacity-50 transition-colors text-sm">
               <RotateCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               Refresh Feed
             </button>
@@ -402,6 +438,29 @@ export default function FeedPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Desktop Pagination */}
+          {totalCount > LIMIT && (
+            <div className="flex justify-center items-center gap-4 pb-8">
+              <button
+                className="px-6 py-2.5 rounded-xl text-sm font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-colors"
+                disabled={offset === 0 || loading}
+                onClick={() => setOffset((prev) => Math.max(0, prev - LIMIT))}
+              >
+                ← Previous
+              </button>
+              <span className="text-sm text-slate-500 font-medium">
+                Showing {offset + 1}–{Math.min(offset + LIMIT, totalCount)} of {totalCount} reports
+              </span>
+              <button
+                className="px-6 py-2.5 rounded-xl text-sm font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-colors"
+                disabled={offset + LIMIT >= totalCount || loading}
+                onClick={() => setOffset((prev) => prev + LIMIT)}
+              >
+                Next →
+              </button>
             </div>
           )}
         </div>
