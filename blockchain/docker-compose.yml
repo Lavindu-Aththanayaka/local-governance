@@ -60,9 +60,8 @@ services:
       - ./node2:/root/node2
       - ./genesis.json:/root/genesis.json
       - node2_data:/root/node2/geth
-    # Removed --mine and --miner.etherbase to allow clean initial peering and syncing
     command:
-      - "sleep 10 && if [ ! -d /root/node2/geth/chaindata ]; then echo 'Initializing Node 2...' && geth init --datadir /root/node2 /root/genesis.json; fi; exec geth
+      - "sleep 20 && if [ ! -d /root/node2/geth/chaindata ]; then echo 'Initializing Node 2...' && geth init --datadir /root/node2 /root/genesis.json; fi; exec geth
           --datadir=/root/node2
           --networkid=1337
           --port=30304
@@ -96,7 +95,6 @@ services:
       - ./node3:/root/node3
       - ./genesis.json:/root/genesis.json
       - node3_data:/root/node3/geth
-    # Removed --mine and --miner.etherbase to allow clean initial peering and syncing
     command:
       - "if [ ! -d /root/node3/geth/chaindata ]; then echo 'Initializing Node 3...' && geth init --datadir /root/node3 /root/genesis.json; fi; exec geth
           --datadir=/root/node3
