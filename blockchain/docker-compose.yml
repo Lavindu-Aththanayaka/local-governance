@@ -21,7 +21,7 @@ services:
     command:
       - "if [ ! -s /root/node1/nodekey ] || [ $$(wc -c < /root/node1/nodekey) -lt 64 ]; then echo 'Writing static persistent nodekey...' && echo 'c5ba367e9f33080ec1eda12a9447ded9e70b723d63fead5f5874acfbfb452477' > /root/node1/nodekey; fi;
          if [ ! -d /root/node1/geth/chaindata ]; then echo 'Initializing Node 1...' && geth init --datadir /root/node1 /root/genesis.json; fi;
-         if [ -f /root/node1/static-nodes.json ]; then echo 'Applying static nodes...' && cp /root/node1/static-nodes.json /root/node1/geth/static-nodes.json; fi;
+         if [ -f /root/node1/static-nodes.json ]; then echo 'Applying static nodes...' && mkdir -p /root/node1/geth && cp /root/node1/static-nodes.json /root/node1/static-nodes.json; fi;
          exec geth
           --datadir=/root/node1
           --nodekey=/root/node1/nodekey
@@ -57,9 +57,9 @@ services:
       - ./genesis.json:/root/genesis.json
       - node2_data:/root/node2/geth
     command:
-      - "sleep 20 && if [ ! -s /root/node2/nodekey ] || [ $$(wc -c < /root/node2/nodekey) -lt 64 ]; then echo 'Writing static persistent nodekey...' && echo '3b8b81d5a115960783805cf02faa7cb573ca101f5459793dc1ecb3a7ecb3be0b' > /root/node2/nodekey; fi;
+      - "sleep 10 && if [ ! -s /root/node2/nodekey ] || [ $$(wc -c < /root/node2/nodekey) -lt 64 ]; then echo 'Writing static persistent nodekey...' && echo '3b8b81d5a115960783805cf02faa7cb573ca101f5459793dc1ecb3a7ecb3be0b' > /root/node2/nodekey; fi;
          if [ ! -d /root/node2/geth/chaindata ]; then echo 'Initializing Node 2...' && geth init --datadir /root/node2 /root/genesis.json; fi;
-         if [ -f /root/node2/static-nodes.json ]; then echo 'Applying static nodes...' && cp /root/node2/static-nodes.json /root/node2/geth/static-nodes.json; fi;
+         if [ -f /root/node2/static-nodes.json ]; then echo 'Applying static nodes...' && mkdir -p /root/node2/geth && cp /root/node2/static-nodes.json /root/node2/static-nodes.json; fi;
          exec geth
           --datadir=/root/node2
           --nodekey=/root/node2/nodekey
@@ -96,9 +96,9 @@ services:
       - ./genesis.json:/root/genesis.json
       - node3_data:/root/node3/geth
     command:
-      - "sleep 30 && if [ ! -s /root/node3/nodekey ] || [ $$(wc -c < /root/node3/nodekey) -lt 64 ]; then echo 'Writing static persistent nodekey...' && echo '94c15b2e48649fbc752b7a2e4ed23dc169a742984adfac980cfb8150204d8ea9' > /root/node3/nodekey; fi;
+      - "sleep 15 && if [ ! -s /root/node3/nodekey ] || [ $$(wc -c < /root/node3/nodekey) -lt 64 ]; then echo 'Writing static persistent nodekey...' && echo '94c15b2e48649fbc752b7a2e4ed23dc169a742984adfac980cfb8150204d8ea9' > /root/node3/nodekey; fi;
          if [ ! -d /root/node3/geth/chaindata ]; then echo 'Initializing Node 3...' && geth init --datadir /root/node3 /root/genesis.json; fi;
-         if [ -f /root/node3/static-nodes.json ]; then echo 'Applying static nodes...' && cp /root/node3/static-nodes.json /root/node3/geth/static-nodes.json; fi;
+         if [ -f /root/node3/static-nodes.json ]; then echo 'Applying static nodes...' && mkdir -p /root/node3/geth && cp /root/node3/static-nodes.json /root/node3/static-nodes.json; fi;
          exec geth
           --datadir=/root/node3
           --nodekey=/root/node3/nodekey
@@ -136,9 +136,9 @@ services:
       - ./genesis.json:/root/genesis.json
       - node4_data:/root/node4/geth
     command:
-      - "sleep 25 && if [ ! -s /root/node4/nodekey ] || [ $$(wc -c < /root/node4/nodekey) -lt 64 ]; then echo 'Writing static persistent nodekey...' && echo '6e8ce3664ebc1d168a43b818fa955574ec8065dd08e60cf8c75dda55a608f463' > /root/node4/nodekey; fi;
+      - "sleep 15 && if [ ! -s /root/node4/nodekey ] || [ $$(wc -c < /root/node4/nodekey) -lt 64 ]; then echo 'Writing static persistent nodekey...' && echo '6e8ce3664ebc1d168a43b818fa955574ec8065dd08e60cf8c75dda55a608f463' > /root/node4/nodekey; fi;
          if [ ! -d /root/node4/geth/chaindata ]; then echo 'Initializing Node 4...' && geth init --datadir /root/node4 /root/genesis.json; fi;
-         if [ -f /root/node4/static-nodes.json ]; then echo 'Applying static nodes...' && cp /root/node4/static-nodes.json /root/node4/geth/static-nodes.json; fi;
+         if [ -f /root/node4/static-nodes.json ]; then echo 'Applying static nodes...' && mkdir -p /root/node4/geth && cp /root/node4/static-nodes.json /root/node4/static-nodes.json; fi;
          exec geth
           --datadir=/root/node4
           --nodekey=/root/node4/nodekey
