@@ -116,7 +116,7 @@ export class AiOracleService {
       })),
     };
 
-    this.logger.log(`AI Oracle request body preview: ${JSON.stringify(requestBodyPreview, null, 2)}`);
+    //this.logger.log(`AI Oracle request body preview: ${JSON.stringify(requestBodyPreview, null, 2)}`);
 
     // 3. FIX: Cast to 'any' to bypass TS DOM complaining, relying on Node 18+ globals
     const formData = new (globalThis as any).FormData();
