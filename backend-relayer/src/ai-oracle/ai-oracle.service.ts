@@ -91,10 +91,10 @@ export class AiOracleService {
 
     const relayerSignature = await wallet.signMessage(requestHash);
 
-    this.logger.log(`Relayer wallet address: ${wallet.address}`);
-    this.logger.log(`Canonical string: ${canonicalString}`);
-    this.logger.log(`Request hash: ${requestHash}`);
-    this.logger.log(`Relayer signature: ${relayerSignature}`);
+    // this.logger.log(`Relayer wallet address: ${wallet.address}`);
+    // this.logger.log(`Canonical string: ${canonicalString}`);
+    // this.logger.log(`Request hash: ${requestHash}`);
+    // this.logger.log(`Relayer signature: ${relayerSignature}`);
 
     const metadata = {
       report_id: reportId,
