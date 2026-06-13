@@ -29,6 +29,7 @@ contract AuthorityMultiSig {
     uint256 public constant REQUIRED_APPROVALS = 2;
 
     mapping(address => bool) public isSuperAdmin;
+    address[] public superAdminsList;
     uint256 public superAdminCount;
 
     uint256 public proposalCount;
@@ -59,6 +60,7 @@ contract AuthorityMultiSig {
             require(!isSuperAdmin[admin], "Duplicate admin");
             
             isSuperAdmin[admin] = true;
+            superAdminsList.push(admin);
             superAdminCount++;
         }
         
@@ -149,11 +151,22 @@ contract AuthorityMultiSig {
         if (proposal.actionType == ActionType.AddSuperAdmin) {
             if (!isSuperAdmin[proposal.target]) {
                 isSuperAdmin[proposal.target] = true;
+                superAdminsList.push(proposal.target);
                 superAdminCount++;
             }
         } else if (proposal.actionType == ActionType.RemoveSuperAdmin) {
             if (isSuperAdmin[proposal.target]) {
                 isSuperAdmin[proposal.target] = false;
+                
+                // Remove from array
+                for (uint256 i = 0; i < superAdminsList.length; i++) {
+                    if (superAdminsList[i] == proposal.target) {
+                        superAdminsList[i] = superAdminsList[superAdminsList.length - 1];
+                        superAdminsList.pop();
+                        break;
+                    }
+                }
+                
                 superAdminCount--;
             }
         } else if (proposal.actionType == ActionType.AddAuthority) {
@@ -165,5 +178,11 @@ contract AuthorityMultiSig {
         }
         
         emit ProposalExecuted(proposalId, proposal.target, proposal.actionType);
+    }
+
+    // ─── View Functions ───────────────────────────────────────────────────────
+    
+    function getSuperAdmins() external view returns (address[] memory) {
+        return superAdminsList;
     }
 }

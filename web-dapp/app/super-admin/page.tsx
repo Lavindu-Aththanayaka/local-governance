@@ -4,7 +4,16 @@ import React, { useState, useEffect } from "react";
 import { useAdmin } from "@/context/AdminContext";
 
 export default function SuperAdminPage() {
-  const { account, isSuperAdmin, isConnecting, contract, connectWallet } = useAdmin();
+  const { 
+    account, 
+    isSuperAdmin, 
+    isConnecting, 
+    contract, 
+    connectWallet,
+    superAdminsList,
+    authoritiesList,
+    fetchLists
+  } = useAdmin();
   
   const [targetAddress, setTargetAddress] = useState("");
   const [actionType, setActionType] = useState("0");
@@ -21,24 +30,23 @@ export default function SuperAdminPage() {
     if (!contract) return;
     try {
       const count = await contract.proposalCount();
-      const numProposals = Number(count);
-      const fetchedProposals = [];
-      
-      // Fetch the last 10 proposals
-      const start = Math.max(1, numProposals - 9);
-      for (let i = numProposals; i >= start; i--) {
-        const prop = await contract.proposals(i);
-        fetchedProposals.push({
+      const loadedProposals = [];
+      for (let i = Number(count); i > 0; i--) {
+        const p = await contract.proposals(i);
+        loadedProposals.push({
           id: i,
-          target: prop.target,
-          actionType: Number(prop.actionType),
-          votes: Number(prop.votes),
-          executed: prop.executed
+          target: p.target,
+          actionType: Number(p.actionType),
+          votes: Number(p.votes),
+          executed: p.executed,
         });
       }
-      setProposals(fetchedProposals);
+      setProposals(loadedProposals);
+      
+      // Also refresh lists when proposals load
+      await fetchLists();
     } catch (error) {
-      console.error("Error fetching proposals:", error);
+      console.error("Error fetching proposals", error);
     }
   };
 
@@ -132,7 +140,7 @@ export default function SuperAdminPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Submit Proposal Form */}
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 space-y-8">
           <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
             <h2 className="text-xl font-bold text-slate-800 mb-4">Create Proposal</h2>
             <form onSubmit={handleSubmitProposal}>
@@ -169,10 +177,48 @@ export default function SuperAdminPage() {
               </button>
             </form>
           </div>
-        </div>
+              {/* Active Governance Members Card */}
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col gap-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Active Super Admins</h3>
+                  {superAdminsList.length === 0 ? (
+                    <p className="text-sm text-gray-500">No super admins found.</p>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {superAdminsList.map((admin, idx) => (
+                        <div key={`sa-${idx}`} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs">
+                            {idx + 1}
+                          </div>
+                          <p className="font-mono text-sm text-gray-700">{admin}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-        {/* Active Proposals List */}
-        <div className="lg:col-span-2">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Active Authorities</h3>
+                  {authoritiesList.length === 0 ? (
+                    <p className="text-sm text-gray-500">No authorities configured.</p>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {authoritiesList.map((auth, idx) => (
+                        <div key={`auth-${idx}`} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                          <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-bold text-xs">
+                            A
+                          </div>
+                          <p className="font-mono text-sm text-gray-700">{auth}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: Recent Proposals */}
+            <div className="lg:col-span-2 space-y-6">
           <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
             <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50">
               <h2 className="text-xl font-bold text-slate-800">Recent Proposals</h2>

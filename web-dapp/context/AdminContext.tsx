@@ -1,44 +1,81 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { ethers } from "ethers";
-import { AuthorityMultiSigABI } from "@/lib/contracts/abis";
+import { AuthorityMultiSigABI, ReportingABI } from "@/lib/contracts/abis";
 
-// The local deployed address of your MultiSig contract
-export const MULTISIG_ADDRESS = "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853";
+export const MULTISIG_ADDRESS = "0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82";
+export const REPORTING_ADDRESS = "0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0";
 
 interface AdminContextType {
   account: string | null;
   isSuperAdmin: boolean;
+  isAuthority: boolean;
   isConnecting: boolean;
   provider: ethers.BrowserProvider | null;
   contract: ethers.Contract | null;
+  reportingContract: ethers.Contract | null;
+  superAdminsList: string[];
+  authoritiesList: string[];
   connectWallet: () => Promise<void>;
+  fetchLists: () => Promise<void>;
 }
 
 const AdminContext = createContext<AdminContextType>({
   account: null,
   isSuperAdmin: false,
+  isAuthority: false,
   isConnecting: false,
   provider: null,
   contract: null,
+  reportingContract: null,
+  superAdminsList: [],
+  authoritiesList: [],
   connectWallet: async () => {},
+  fetchLists: async () => {},
 });
 
 export const AdminProvider = ({ children }: { children: React.ReactNode }) => {
   const [account, setAccount] = useState<string | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isAuthority, setIsAuthority] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
   const [contract, setContract] = useState<ethers.Contract | null>(null);
+  const [reportingContract, setReportingContract] = useState<ethers.Contract | null>(null);
+  const [superAdminsList, setSuperAdminsList] = useState<string[]>([]);
+  const [authoritiesList, setAuthoritiesList] = useState<string[]>([]);
 
-  const checkAdminStatus = async (userAddress: string, multiSigContract: ethers.Contract) => {
+  const fetchLists = useCallback(async (
+    multiSig: ethers.Contract | null = contract,
+    reporting: ethers.Contract | null = reportingContract
+  ) => {
+    if (!multiSig || !reporting) return;
     try {
-      const status = await multiSigContract.isSuperAdmin(userAddress);
-      setIsSuperAdmin(status);
+      const sAdmins = await multiSig.getSuperAdmins();
+      const auths = await reporting.getAuthorities();
+      setSuperAdminsList(sAdmins);
+      setAuthoritiesList(auths);
     } catch (error) {
-      console.error("Error checking super admin status", error);
+      console.error("Error fetching admin lists", error);
+    }
+  }, [contract, reportingContract]);
+
+  const checkAdminStatus = async (
+    userAddress: string, 
+    multiSigContract: ethers.Contract,
+    reportingContract: ethers.Contract
+  ) => {
+    try {
+      const sAdminStatus = await multiSigContract.isSuperAdmin(userAddress);
+      setIsSuperAdmin(sAdminStatus);
+
+      const authStatus = await reportingContract.authorizedAuthorities(userAddress);
+      setIsAuthority(authStatus);
+    } catch (error) {
+      console.error("Error checking roles status", error);
       setIsSuperAdmin(false);
+      setIsAuthority(false);
     }
   };
 
@@ -46,7 +83,6 @@ export const AdminProvider = ({ children }: { children: React.ReactNode }) => {
     if (typeof window !== "undefined" && (window as any).ethereum) {
       setIsConnecting(true);
       try {
-        // Automatically request MetaMask to switch to the Localhost network (Chain ID: 31337 or 0x7a69 in hex)
         const chainIdHex = "0x7a69";
         try {
           await (window as any).ethereum.request({
@@ -54,7 +90,6 @@ export const AdminProvider = ({ children }: { children: React.ReactNode }) => {
             params: [{ chainId: chainIdHex }],
           });
         } catch (switchError: any) {
-          // If the network doesn't exist (error code 4902), add it automatically!
           if (switchError.code === 4902) {
             await (window as any).ethereum.request({
               method: 'wallet_addEthereumChain',
@@ -63,11 +98,7 @@ export const AdminProvider = ({ children }: { children: React.ReactNode }) => {
                   chainId: chainIdHex,
                   chainName: 'Hardhat Localhost',
                   rpcUrls: ['http://127.0.0.1:8545/'],
-                  nativeCurrency: {
-                    name: 'Ethereum',
-                    symbol: 'ETH',
-                    decimals: 18,
-                  },
+                  nativeCurrency: { name: 'Ethereum', symbol: 'ETH', decimals: 18 },
                 },
               ],
             });
@@ -78,13 +109,16 @@ export const AdminProvider = ({ children }: { children: React.ReactNode }) => {
         const accounts = await browserProvider.send("eth_requestAccounts", []);
         const signer = await browserProvider.getSigner();
         
-        const multiSigContract = new ethers.Contract(MULTISIG_ADDRESS, AuthorityMultiSigABI, signer);
+        const multiSig = new ethers.Contract(MULTISIG_ADDRESS, AuthorityMultiSigABI, signer);
+        const reporting = new ethers.Contract(REPORTING_ADDRESS, ReportingABI, signer);
         
         setProvider(browserProvider);
         setAccount(accounts[0]);
-        setContract(multiSigContract);
+        setContract(multiSig);
+        setReportingContract(reporting);
 
-        await checkAdminStatus(accounts[0], multiSigContract);
+        await checkAdminStatus(accounts[0], multiSig, reporting);
+        await fetchLists(multiSig, reporting);
       } catch (error) {
         console.error("User denied account access or error occurred", error);
       } finally {
@@ -95,16 +129,19 @@ export const AdminProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // Optional: Listen for account changes
   useEffect(() => {
     if (typeof window !== "undefined" && (window as any).ethereum) {
       (window as any).ethereum.on("accountsChanged", (accounts: string[]) => {
         if (accounts.length > 0) {
-          connectWallet(); // Reconnect to verify new account
+          connectWallet(); 
         } else {
           setAccount(null);
           setIsSuperAdmin(false);
+          setIsAuthority(false);
           setContract(null);
+          setReportingContract(null);
+          setSuperAdminsList([]);
+          setAuthoritiesList([]);
         }
       });
     }
@@ -115,10 +152,15 @@ export const AdminProvider = ({ children }: { children: React.ReactNode }) => {
       value={{
         account,
         isSuperAdmin,
+        isAuthority,
         isConnecting,
         provider,
         contract,
+        reportingContract,
+        superAdminsList,
+        authoritiesList,
         connectWallet,
+        fetchLists,
       }}
     >
       {children}
