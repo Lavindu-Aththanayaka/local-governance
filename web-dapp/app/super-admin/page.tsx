@@ -48,7 +48,9 @@ export default function SuperAdminPage() {
     
     setIsSubmitting(true);
     try {
-      const tx = await contract.submitProposal(targetAddress, Number(actionType));
+      // We lowercase the address to prevent ethers.js strict checksum errors
+      const safeAddress = targetAddress.trim().toLowerCase();
+      const tx = await contract.submitProposal(safeAddress, Number(actionType));
       await tx.wait();
       alert("Proposal submitted successfully!");
       setTargetAddress("");
