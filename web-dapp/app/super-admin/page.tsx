@@ -187,10 +187,10 @@ export default function SuperAdminPage() {
                     <div className="flex flex-col gap-2">
                       {superAdminsList.map((admin, idx) => (
                         <div key={`sa-${idx}`} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
-                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs shrink-0">
                             {idx + 1}
                           </div>
-                          <p className="font-mono text-sm text-gray-700">{admin}</p>
+                          <p className="font-mono text-sm text-gray-700 break-all">{admin}</p>
                         </div>
                       ))}
                     </div>
@@ -205,10 +205,10 @@ export default function SuperAdminPage() {
                     <div className="flex flex-col gap-2">
                       {authoritiesList.map((auth, idx) => (
                         <div key={`auth-${idx}`} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
-                          <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-bold text-xs">
+                          <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-bold text-xs shrink-0">
                             A
                           </div>
-                          <p className="font-mono text-sm text-gray-700">{auth}</p>
+                          <p className="font-mono text-sm text-gray-700 break-all">{auth}</p>
                         </div>
                       ))}
                     </div>
