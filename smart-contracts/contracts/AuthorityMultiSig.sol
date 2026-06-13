@@ -25,6 +25,9 @@ contract AuthorityMultiSig {
     }
 
     // ─── State Variables ─────────────────────────────────────────────────────
+    // Threshold for a proposal to pass (2 out of 3 super admins)
+    uint256 public constant REQUIRED_APPROVALS = 2;
+
     mapping(address => bool) public isSuperAdmin;
     uint256 public superAdminCount;
 
