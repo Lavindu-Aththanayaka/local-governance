@@ -429,6 +429,37 @@ function guessContentType(buffer) {
   return "unknown";
 }
 
+async function storePoll(req, res, next) {
+  try {
+    const { title, description, options, imageCids } = req.body;
+
+    // Basic validation
+    if (!title || !description || !options) {
+      return res.status(400).json({ success: false, message: "Missing required fields" });
+    }
+
+    const pollEnvelope = {
+      type: "poll",
+      title,
+      description,
+      options, // Array of strings (e.g., ["Yes", "No"] or ["A", "B", "C"])
+      imageCids: imageCids || [], // Up to 5 image CIDs previously stored
+      createdAt: new Date().toISOString(),
+    };
+
+    const buffer = Buffer.from(JSON.stringify(pollEnvelope), "utf-8");
+    const ipfs = await getIPFSClient();
+    const result = await ipfs.add(buffer, { pin: true, cidVersion: 1 });
+
+    return res.status(201).json({
+      success: true,
+      cid: result.cid.toString(),
+      type: "poll"
+    });
+  } catch (err) {
+    next(err);
+  }
+}
 export {
   storeImage,
   getImage,

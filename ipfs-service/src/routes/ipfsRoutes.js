@@ -10,6 +10,7 @@ import {
   verifyCID,
   unpinContent,
   healthCheck,
+  storePoll,
 } from "../controllers/ipfsController.js";
 import {
   storeComplaint,
@@ -35,6 +36,7 @@ router.post(
   complaintUpload.array("images", 5),
   storeComplaint,
 );
+router.post("/poll/store", storePoll);
 router.get("/complaint/:cid", getComplaint);
 router.get("/complaint/:cid/image/:index", getComplaintImage);
 
