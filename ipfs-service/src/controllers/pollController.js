@@ -3,10 +3,8 @@ import { getIPFSClient } from "../config/ipfs.js";
 async function storePoll(req, res, next) {
     try {
         const ipfs = await getIPFSClient();
-
         const { title, description, pollType, options } = req.body;
 
-        // Validation
         if (!title || !description || pollType === undefined || !options) {
             return res.status(400).json({
                 success: false,
@@ -24,7 +22,8 @@ async function storePoll(req, res, next) {
             });
         }
 
-        // Process images into Base64 format
+        const parsedOptions = typeof options === "string" ? JSON.parse(options) : options;
+
         const images = files.map((file) => ({
             originalName: file.originalname,
             mimeType: file.mimetype,
@@ -32,24 +31,19 @@ async function storePoll(req, res, next) {
             data: file.buffer.toString("base64"),
         }));
 
-        // Create the envelope
         const envelope = {
             type: "poll",
             title,
             description,
-            pollType, // 0: True/False, 1: Multi-choice
-            options,
+            pollType: parseInt(pollType),
+            options: parsedOptions,
             imageCount: images.length,
             images,
             storedAt: new Date().toISOString(),
         };
 
         const envelopeBuffer = Buffer.from(JSON.stringify(envelope), "utf-8");
-        const envelopeResult = await ipfs.add(envelopeBuffer, {
-            pin: true,
-            cidVersion: 1,
-        });
-
+        const envelopeResult = await ipfs.add(envelopeBuffer, { pin: true, cidVersion: 1 });
         const pollCID = envelopeResult.cid.toString();
 
         return res.status(201).json({
