@@ -4,6 +4,7 @@ import { ethers } from 'ethers';
 
 // Monorepo Magic: Import the ABI directly from your Hardhat artifacts!
 import * as ReportingArtifact from './Reporting.json';
+import * as OpinionPollingArtifact from './OpinionPolling.json';
 
 @Injectable()
 export class BlockchainService implements OnModuleInit {
@@ -11,6 +12,7 @@ export class BlockchainService implements OnModuleInit {
   private provider!: ethers.JsonRpcProvider;
   private relayerWallet!: ethers.Wallet;
   private reportingContract!: ethers.Contract;
+  private pollingContract!: ethers.Contract;
   private blockchainEnabled = false;
 
   constructor(private configService: ConfigService) {}
@@ -37,6 +39,7 @@ export class BlockchainService implements OnModuleInit {
     const rpcUrl = this.configService.get<string>('RPC_URL'); 
     const privateKey = this.configService.get<string>('RELAYER_PRIVATE_KEY');
     const contractAddress = this.configService.get<string>('CONTRACT_ADDRESS');
+    const pollingAddress = this.configService.get<string>('POLLING_CONTRACT_ADDRESS');
 
     if (!rpcUrl || !privateKey || !contractAddress) {
       this.logger.error('Critical Web3 configuration missing from .env');
@@ -55,6 +58,13 @@ export class BlockchainService implements OnModuleInit {
         contractAddress,
         ReportingArtifact.abi,
         this.relayerWallet,
+      );
+
+      // INITIALIZE POLLING CONTRACT
+      this.pollingContract = new ethers.Contract(
+        pollingAddress,
+        OpinionPollingArtifact.abi,
+        this.relayerWallet
       );
 
       this.logger.log(`Blockchain connected. Relayer Address: ${this.relayerWallet.address}`);
@@ -159,5 +169,35 @@ export class BlockchainService implements OnModuleInit {
     // Assuming you have reportCount public variable or getAllReports implemented
     const [reports] = await this.reportingContract.getAllReports(0, limit); 
     return reports;
+  }
+
+  /**
+ * Triggers the OpinionPolling contract for government authorities.
+ */
+  async createPollOnChain(ipfsCID: string, deadline: number, pollType: number) {
+    if (!this.blockchainEnabled) throw new InternalServerErrorException('Blockchain disabled');
+
+    try {
+      this.logger.log(`Broadcasting createOfficialPoll for CID: ${ipfsCID}`);
+
+      // Calling the smart contract function defined in OpinionPolling.sol
+      const tx = await this.pollingContract.createOfficialPoll(
+        ipfsCID,
+        deadline,
+        pollType
+      );
+
+      const receipt = await tx.wait();
+      this.logger.log(`✅ Poll created on-chain in block: ${receipt.blockNumber}`);
+
+      return {
+        success: true,
+        transactionHash: tx.hash,
+        blockNumber: receipt.blockNumber
+      };
+    } catch (error: any) {
+      this.logger.error(`Poll creation on-chain failed: ${error.message}`);
+      throw new InternalServerErrorException('Failed to record poll on-chain.');
+    }
   }
 }
