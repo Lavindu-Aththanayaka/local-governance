@@ -10,13 +10,14 @@ import {
   verifyCID,
   unpinContent,
   healthCheck,
-  storePoll,
 } from "../controllers/ipfsController.js";
 import {
   storeComplaint,
   getComplaint,
   getComplaintImage,
 } from "../controllers/complaintController.js";
+
+import { storePoll, getPoll } from "../controllers/pollController.js";
 
 const router = express.Router();
 
@@ -36,7 +37,9 @@ router.post(
   complaintUpload.array("images", 5),
   storeComplaint,
 );
-router.post("/poll/store", storePoll);
+router.post("/poll/store", complaintUpload.array("images", 5), storePoll);
+
+router.get("/poll/:cid", getPoll);
 router.get("/complaint/:cid", getComplaint);
 router.get("/complaint/:cid/image/:index", getComplaintImage);
 
