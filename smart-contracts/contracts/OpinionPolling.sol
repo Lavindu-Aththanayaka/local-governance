@@ -3,19 +3,17 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-// Interface for existing authority management
 interface IReporting {
     function authorizedAuthorities(address account) external view returns (bool);
 }
 
 contract OpinionPolling is ReentrancyGuard {
-    
     enum PollType { TrueFalse, MultiChoice }
 
     struct Poll {
         uint256 id;
         address creator;
-        string ipfsMetadataCid; // Contains title, desc, options, image CIDs
+        string ipfsMetadataCid; 
         uint256 deadline;
         PollType pollType;
         bool isActive;
@@ -27,25 +25,23 @@ contract OpinionPolling is ReentrancyGuard {
     mapping(uint256 => Poll) public polls;
     // pollId => optionIndex => voteCount
     mapping(uint256 => mapping(uint256 => uint256)) public pollResults;
-    // pollId => voterAddress => hasVoted
-    mapping(uint256 => mapping(address => bool)) public hasVoted;
+    // pollId => uniqueNullifier => hasVoted
+    mapping(uint256 => mapping(bytes32 => bool)) public nullifierVoted;
 
     event PollCreated(uint256 indexed pollId, address indexed creator, string ipfsMetadataCid, uint256 deadline);
-    event VoteCast(uint256 indexed pollId, address indexed voter, uint256 optionIndex);
+    event VoteCast(uint256 indexed pollId, bytes32 indexed nullifier, uint256 optionIndex);
+    event PollFinalized(uint256 indexed pollId, uint256 finalizedAt);
 
     error UnauthorizedAuthority();
     error PollInactiveOrClosed();
-    error AlreadyVoted();
+    error AlreadyVotedWithNullifier();
     error InvalidDeadline();
+    error PollDoesNotExist();
 
     constructor(address _reportingContract) {
         reportingContract = IReporting(_reportingContract);
     }
 
-    /**
-     * @notice Create a poll directly without AI moderation.
-     * @param _ipfsMetadataCid CID of the JSON file containing poll details and images.
-     */
     function createOfficialPoll(
         string calldata _ipfsMetadataCid,
         uint256 _deadline,
@@ -68,14 +64,31 @@ contract OpinionPolling is ReentrancyGuard {
         return pollCount;
     }
 
-    function castVote(uint256 _pollId, uint256 _optionIndex) external nonReentrant {
+    function castVote(uint256 _pollId, uint256 _optionIndex, bytes32 _nullifier) external nonReentrant {
         Poll storage poll = polls[_pollId];
         if (!poll.isActive || block.timestamp >= poll.deadline) revert PollInactiveOrClosed();
-        if (hasVoted[_pollId][msg.sender]) revert AlreadyVoted();
+        if (nullifierVoted[_pollId][_nullifier]) revert AlreadyVotedWithNullifier();
 
-        hasVoted[_pollId][msg.sender] = true;
+        nullifierVoted[_pollId][_nullifier] = true;
         pollResults[_pollId][_optionIndex]++;
 
-        emit VoteCast(_pollId, msg.sender, _optionIndex);
+        emit VoteCast(_pollId, _nullifier, _optionIndex);
+    }
+
+    function finalizePoll(uint256 _pollId) external {
+        if (_pollId == 0 || _pollId > pollCount) revert PollDoesNotExist();
+        Poll storage poll = polls[_pollId];
+        if (!poll.isActive) revert PollInactiveOrClosed();
+        
+        poll.isActive = false;
+        emit PollFinalized(_pollId, block.timestamp);
+    }
+
+    function getPollResults(uint256 _pollId, uint256 _optionCount) external view returns (uint256[] memory) {
+        uint256[] memory results = new uint256[](_optionCount);
+        for (uint256 i = 0; i < _optionCount; i++) {
+            results[i] = pollResults[_pollId][i];
+        }
+        return results;
     }
 }
