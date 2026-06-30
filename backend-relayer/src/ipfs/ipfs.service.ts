@@ -11,6 +11,8 @@ export class IpfsService {
   private readonly complaintStoreEndpoint =
     process.env.IPFS_COMPLAINT_STORE_ENDPOINT ||
     `${this.ipfsBaseUrl}/api/ipfs/complaint/store`;
+  private readonly pollStoreEndpoint =
+    process.env.IPFS_POLL_STORE_ENDPOINT || `${this.ipfsBaseUrl}/api/ipfs/poll/store`;
 
   async uploadComplaint(payload: {
     description: string;
@@ -71,9 +73,6 @@ export class IpfsService {
     }
   }
 
-  private readonly pollStoreEndpoint =
-    process.env.IPFS_POLL_STORE_ENDPOINT ||
-    `${this.ipfsBaseUrl}/api/ipfs/poll/store`;
 
   async uploadPoll(payload: {
     title: string;
@@ -98,23 +97,19 @@ export class IpfsService {
         }
       }
 
-      this.logger.log('Uploading poll bundle to IPFS node...');
-
+      this.logger.log('Uploading poll structural metadata to node...');
       const response = await axios.post(this.pollStoreEndpoint, formData, {
         headers: { ...formData.getHeaders() },
         timeout: 30000,
       });
 
       const cid = response.data?.cid;
-      if (!cid) throw new Error('IPFS store did not return a CID');
+      if (!cid) throw new Error('IPFS storage execution missed CID generation');
 
-      const ipfsUri = `ipfs://${cid}`;
-      this.logger.log(`✅ Poll stored on IPFS: ${cid}`);
-
-      return { cid, ipfsUri, raw: response.data };
+      return { cid, ipfsUri: `ipfs://${cid}`, raw: response.data };
     } catch (error: any) {
-      this.logger.error(`IPFS poll upload failed: ${error.message}`);
-      throw new HttpException('Failed to store poll on IPFS', HttpStatus.BAD_GATEWAY);
+      this.logger.error(`IPFS poll upload anomaly: ${error.message}`);
+      throw new HttpException('Failed to synchronize object state with the IPFS boundary.', HttpStatus.BAD_GATEWAY);
     }
   }
 

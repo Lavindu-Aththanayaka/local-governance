@@ -1,8 +1,6 @@
-// backend-relayer/src/polling/polling.service.ts
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { IpfsService } from '../ipfs/ipfs.service';
 import { BlockchainService } from '../blockchain/blockchain.service';
-import { ethers } from 'ethers';
 
 @Injectable()
 export class PollingService {
@@ -13,25 +11,18 @@ export class PollingService {
         private readonly blockchainService: BlockchainService,
     ) { }
 
-
-    async createPoll(payload: {
-        title: string;
-        description: string;
-        pollType: number;
-        options: string[];
-        deadline: number;
-        images?: Express.Multer.File[];
-    }) {
-        // 1. Upload to IPFS via the new IpfsService method
+    async createPoll(payload: any) {
         const ipfsResult = await this.ipfsService.uploadPoll(payload);
-
-        // 2. Submit to Blockchain
         const tx = await this.blockchainService.createPollOnChain(
-            ipfsResult.ipfsUri, // "ipfs://Qm..."
+            ipfsResult.cid,
             payload.deadline,
             payload.pollType
         );
+        return { success: true, pollCID: ipfsResult.cid, txHash: tx.transactionHash };
+    }
 
-        return { success: true, pollCID: ipfsResult.cid, txHash: tx.hash };
+    async vote(pollId: number, optionIndex: number, nullifier: string) {
+        this.logger.log(`Processing vote relay for poll ${pollId} with nullifier protection.`);
+        return await this.blockchainService.castPollVoteOnChain(pollId, optionIndex, nullifier);
     }
 }

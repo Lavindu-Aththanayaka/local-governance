@@ -1,44 +1,35 @@
-import {
-    Controller,
-    Post,
-    Body,
-    UseInterceptors,
-    UploadedFiles,
-    ParseIntPipe
-} from '@nestjs/common';
+import { Controller, Post, Body, UseInterceptors, UploadedFiles, UseGuards, ParseIntPipe } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { PollingService } from './polling.service';
+import { CastVoteDto } from './dto/cast-vote.dto';
+import { CitizenAuthGuard } from './guards/citizen-auth.guard'; // Reuses guard from image_4a6555.png
 
 @Controller('polling')
 export class PollingController {
     constructor(private readonly pollingService: PollingService) { }
 
     @Post('create')
-    @UseInterceptors(FilesInterceptor('images', 5)) // Accept up to 5 images
+    @UseInterceptors(FilesInterceptor('images', 5))
     async createOfficialPoll(
         @Body('title') title: string,
         @Body('description') description: string,
         @Body('pollType', ParseIntPipe) pollType: number,
-        @Body('options') options: string, // Received as JSON string from frontend
+        @Body('options') options: string,
         @Body('deadline', ParseIntPipe) deadline: number,
         @UploadedFiles() images: Express.Multer.File[]
     ) {
-        // Parse options from JSON string
-        const parsedOptions = JSON.parse(options);
-
-        // Call the service method we defined earlier
-        const result = await this.pollingService.createPoll({
-            title,
-            description,
-            pollType,
-            options: parsedOptions,
-            deadline,
-            images
+        return await this.pollingService.createPoll({
+            title, description, pollType, options: JSON.parse(options), deadline, images
         });
+    }
 
-        return {
-            success: true,
-            data: result
-        };
+    @Post('vote')
+    @UseGuards(CitizenAuthGuard) // Protects endpoint using your core auth logic
+    async vote(@Body() castVoteDto: CastVoteDto) {
+        return await this.pollingService.vote(
+            castVoteDto.pollId,
+            castVoteDto.optionIndex,
+            castVoteDto.nullifier
+        );
     }
 }

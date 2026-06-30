@@ -200,4 +200,23 @@ export class BlockchainService implements OnModuleInit {
       throw new InternalServerErrorException('Failed to record poll on-chain.');
     }
   }
+
+  async castPollVoteOnChain(pollId: number, optionIndex: number, nullifier: string) {
+    if (!this.blockchainEnabled) throw new InternalServerErrorException('Blockchain cluster offline');
+
+    try {
+      // Convert hex string nullifier to bytes32 format, tracking the exact pattern used in submitReportToChain
+      const nullifierBytes = ethers.hexlify(ethers.getBytes(nullifier)) as `0x${string}`;
+
+      this.logger.log(`Broadcasting castVote transaction for poll: ${pollId}`);
+      const tx = await this.pollingContract.castVote(pollId, optionIndex, nullifierBytes);
+
+      const receipt = await tx.wait();
+      this.logger.log(`✅ Vote successfully cataloged in block ${receipt.blockNumber}`);
+      return { success: true, transactionHash: tx.hash };
+    } catch (error: any) {
+      this.logger.error(`On-chain vote broadcast failure: ${error.message}`);
+      throw new InternalServerErrorException('Contract rejected voting payload.');
+    }
+  }
 }
