@@ -71,6 +71,53 @@ export class IpfsService {
     }
   }
 
+  private readonly pollStoreEndpoint =
+    process.env.IPFS_POLL_STORE_ENDPOINT ||
+    `${this.ipfsBaseUrl}/api/ipfs/poll/store`;
+
+  async uploadPoll(payload: {
+    title: string;
+    description: string;
+    pollType: number;
+    options: string[];
+    images?: Express.Multer.File[];
+  }): Promise<{ cid: string; ipfsUri: string; raw: any }> {
+    try {
+      const formData = new FormData();
+      formData.append('title', payload.title);
+      formData.append('description', payload.description);
+      formData.append('pollType', payload.pollType.toString());
+      formData.append('options', JSON.stringify(payload.options));
+
+      if (payload.images?.length) {
+        for (const image of payload.images) {
+          formData.append('images', image.buffer, {
+            filename: image.originalname || 'poll_img.jpg',
+            contentType: image.mimetype || 'image/webp',
+          });
+        }
+      }
+
+      this.logger.log('Uploading poll bundle to IPFS node...');
+
+      const response = await axios.post(this.pollStoreEndpoint, formData, {
+        headers: { ...formData.getHeaders() },
+        timeout: 30000,
+      });
+
+      const cid = response.data?.cid;
+      if (!cid) throw new Error('IPFS store did not return a CID');
+
+      const ipfsUri = `ipfs://${cid}`;
+      this.logger.log(`✅ Poll stored on IPFS: ${cid}`);
+
+      return { cid, ipfsUri, raw: response.data };
+    } catch (error: any) {
+      this.logger.error(`IPFS poll upload failed: ${error.message}`);
+      throw new HttpException('Failed to store poll on IPFS', HttpStatus.BAD_GATEWAY);
+    }
+  }
+
   /**
    * Optional Helper: Uploads a JSON metadata object to IPFS.
    * Useful if your blockchain contract expects a single metadata URI containing the description + image links.
